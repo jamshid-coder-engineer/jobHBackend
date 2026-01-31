@@ -10,6 +10,7 @@ import { VacancyModule } from './api/vacancy/vacancy.module';
 import { ResumeModule } from './api/resume/resume.module';
 import { ApplicationModule } from './api/application/application.module';
 import { TokenModule } from './infrastructure';
+import { AdminModule } from './api/admin/admin.module';
 
 @Module({
   imports: [
@@ -41,7 +42,8 @@ CompanyModule,
 VacancyModule,
 ResumeModule,
 ApplicationModule,
-TokenModule
+TokenModule,
+AdminModule
   ],
 })
 export class AppModule {}

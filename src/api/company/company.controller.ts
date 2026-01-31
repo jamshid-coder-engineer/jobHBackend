@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 
 import { CompanyService } from './company.service';
 import { CreateCompanyDto } from './dto/com.create.dto';
@@ -10,32 +10,69 @@ import { accessRoles } from 'src/common/decorator/roles.decorator';
 import { CurrentUser } from 'src/common/decorator/currentUser.decorator';
 import { Roles } from 'src/common/enum/roles.enum';
 
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UploadedFile, UseInterceptors } from '@nestjs/common';
+import { multerOptions } from '../../infrastructure/fileServise/multer.utils';
+import { config } from 'src/config';
+
+import { ApiBody, ApiConsumes, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+
 @Controller('companies')
 @UseGuards(AuthGuard, RolesGuard)
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
-  @Post()
-  @accessRoles(Roles.TEACHER)
-  create(@CurrentUser() user: any, @Body() dto: CreateCompanyDto) {
-    return this.companyService.create(user, dto);
-  }
+  @ApiBearerAuth()
+ @Post()
+@UseGuards(AuthGuard, RolesGuard)
+@accessRoles(Roles.TEACHER)
+create(@CurrentUser() user: any, @Body() dto: CreateCompanyDto) {
+  return this.companyService.createCompany(user, dto);
+}
 
-  @Get('me')
-  @accessRoles(Roles.TEACHER, Roles.ADMIN, Roles.SUPER_ADMIN)
-  myCompany(@CurrentUser() user: any) {
-    return this.companyService.getMyCompany(user);
-  }
+@ApiBearerAuth()
+@Get('me')
+@UseGuards(AuthGuard, RolesGuard)
+@accessRoles(Roles.TEACHER)
+me(@CurrentUser() user: any) {
+  return this.companyService.myCompany(user);
+}
 
-  @Patch(':id')
-  @accessRoles(Roles.TEACHER, Roles.ADMIN, Roles.SUPER_ADMIN)
-  update(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateCompanyDto) {
-    return this.companyService.update(user, id, dto);
-  }
+@ApiBearerAuth()
+@Patch('me')
+@UseGuards(AuthGuard, RolesGuard)
+@accessRoles(Roles.TEACHER)
+updateMe(@CurrentUser() user: any, @Body() dto: UpdateCompanyDto) {
+  return this.companyService.updateMyCompany(user, dto);
+}
 
+@ApiBearerAuth()
+@ApiConsumes('multipart/form-data')
+@ApiBody({
+  schema: {
+    type: 'object',
+    properties: {
+      file: { type: 'string', format: 'binary' },
+    },
+  },
+})
+
+@ApiBearerAuth()
+@Patch('me/logo')
+@UseGuards(AuthGuard, RolesGuard)
+@accessRoles(Roles.TEACHER)
+@UseInterceptors(FileInterceptor('file', multerOptions))
+uploadLogo(@CurrentUser() user: any, @UploadedFile() file: any) {
+  return this.companyService.updateMyLogo(user, file.filename);
+}
+
+
+@ApiBearerAuth()
   @Patch(':id/status')
-  @accessRoles(Roles.ADMIN, Roles.SUPER_ADMIN)
-  toggleStatus(@CurrentUser() user: any, @Param('id') id: string) {
-    return this.companyService.toggleStatus(user, id);
-  }
+@UseGuards(AuthGuard, RolesGuard)
+@accessRoles(Roles.ADMIN, Roles.SUPER_ADMIN)
+toggleStatus(@CurrentUser() user: any, @Param('id', ParseUUIDPipe) id: string) {
+  return this.companyService.toggleCompanyStatus(user, id);
+}
+
 }

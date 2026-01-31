@@ -4,47 +4,47 @@ import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { config } from 'src/config';
 
-export const UPLOAD_DESTINATION = join(process.cwd(), config.UPLOAD.FOLDER || 'uploads');
+export const CV_DESTINATION = join(
+  process.cwd(),
+  config.UPLOAD.FOLDER || 'uploads',
+  'cv',
+);
 
-
-// Papka bo‘lmasa yaratadi
-export const createDestination = () => {
-  if (!existsSync(UPLOAD_DESTINATION)) {
-    mkdirSync(UPLOAD_DESTINATION, { recursive: true });
+const ensureCvDir = () => {
+  if (!existsSync(CV_DESTINATION)) {
+    mkdirSync(CV_DESTINATION, { recursive: true });
   }
 };
 
-export const multerOptions = {
+export const pdfMulterOptions = {
   storage: diskStorage({
     destination: (req, file, cb) => {
-      createDestination();
-      cb(null, UPLOAD_DESTINATION);
+      ensureCvDir();
+      cb(null, CV_DESTINATION);
     },
     filename: (req, file, cb) => {
       const randomName = Array(32)
         .fill(null)
-        .map(() => Math.floor(Math.random() * 16).toString(16))
+        .map(() => Math.round(Math.random() * 16).toString(16))
         .join('');
-
       cb(null, `${randomName}${extname(file.originalname)}`);
     },
   }),
-
   fileFilter: (req: any, file: any, cb: any) => {
-    if (file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
+    // faqat pdf
+    if (file.mimetype === 'application/pdf') {
       cb(null, true);
     } else {
       cb(
         new HttpException(
-          `Unsupported file type ${extname(file.originalname)}`,
+          `Only PDF allowed. Got ${file.mimetype}`,
           HttpStatus.BAD_REQUEST,
         ),
         false,
       );
     }
   },
-
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 10 * 1024 * 1024, // 10MB
   },
 };

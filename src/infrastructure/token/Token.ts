@@ -8,20 +8,19 @@ import type { ITokenPayload } from './interface';
 @Injectable()
 export class TokenService {
   constructor(private readonly jwt: JwtService) {}
+signAccessToken(payload: any) {
+  return this.jwt.signAsync(payload, {
+    secret: config.JWT.ACCESS_SECRET,
+    expiresIn: config.JWT.ACCESS_EXPIRES_IN,
+  });
+}
 
-  async signAccessToken(payload: ITokenPayload): Promise<string> {
-    return this.jwt.signAsync(payload, {
-      secret: config.JWT.ACCESS_SECRET,
-      expiresIn: config.JWT.ACCESS_EXPIRES_IN, // seconds
-    });
-  }
-
-  async signRefreshToken(payload: ITokenPayload): Promise<string> {
-    return this.jwt.signAsync(payload, {
-      secret: config.JWT.REFRESH_SECRET,
-      expiresIn: config.JWT.REFRESH_EXPIRES_IN, // seconds
-    });
-  }
+signRefreshToken(payload: any) {
+  return this.jwt.signAsync(payload, {
+    secret: config.JWT.REFRESH_SECRET,
+    expiresIn: config.JWT.REFRESH_EXPIRES_IN,
+  });
+}
 
   writeCookie(
     res: Response,

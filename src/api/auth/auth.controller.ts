@@ -1,75 +1,53 @@
-import { Body, Controller, Get, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { RefreshDto } from './dto/refresh.dto';
-import { TokenService } from 'src/infrastructure/token/Token';
-import { config } from 'src/config';
+import { RegisterDto } from './dto/register.dto';
 
 import { AuthGuard } from 'src/common/guard/authGuard';
+import { RolesGuard } from 'src/common/guard/roleGuard';
 import { accessRoles } from 'src/common/decorator/roles.decorator';
+import { CurrentUser } from 'src/common/decorator/currentUser.decorator';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly tokenService: TokenService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  async register(@Body() dto: RegisterDto) {
+  @accessRoles('public')
+  register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   @Post('login')
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.login(dto);
-
-    // refresh tokenni cookie’da ham yozib qo‘yamiz (xohlasang keyin o‘chiramiz)
-    this.tokenService.writeCookie(res, 'refreshToken', result.refreshToken, config.JWT.REFRESH_EXPIRES_IN);
-
-    return {
-      user: result.user,
-      accessToken: result.accessToken,
-    };
-  }
-@Post('refresh')
-async refresh(
-  @Body() dto: RefreshDto,
-  @Req() req: Request,
-  @Res({ passthrough: true }) res: Response,
-) {
-  const cookieToken = (req as any).cookies?.refreshToken as string | undefined;
-  const refreshToken = dto.refreshToken || cookieToken;
-
-  if (!refreshToken) {
-    throw new UnauthorizedException('Refresh token not provided');
+  @accessRoles('public')
+  login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
   }
 
-  const result = await this.authService.refresh(refreshToken);
+  @ApiBearerAuth()
+  @Get('me')
+  @UseGuards(AuthGuard, RolesGuard)
+  me(@CurrentUser() user: any) {
+    return this.authService.me(user);
+  }
 
-  this.tokenService.writeCookie(
-    res,
-    'refreshToken',
-    result.refreshToken,
-    config.JWT.REFRESH_EXPIRES_IN,
-  );
+  @Post('refresh')
+  @accessRoles('public')
+  refresh(@Req() req: Request) {
+    const token =
+      (req.headers['x-refresh-token'] as string) ||
+      (req.body?.refreshToken as string);
 
-  return { accessToken: result.accessToken };
-}
+    return this.authService.refresh(token);
+  }
 
   @Post('logout')
-  async logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('refreshToken', { path: '/' });
-    return { ok: true };
-  }
-
-  @Get('me')
-  @UseGuards(AuthGuard)
-  @accessRoles('public') // bu shart emas, olib tashlash ham mumkin
-  async me(@Req() req: any) {
-    return req.user;
+  @accessRoles('public')
+  logout() {
+    return this.authService.logout();
   }
 }

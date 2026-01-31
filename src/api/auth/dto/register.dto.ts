@@ -1,5 +1,5 @@
-import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { Roles } from '../../../common/enum/roles.enum';
+import { IsEmail, IsEnum, IsString, MinLength } from 'class-validator';
+import { Roles } from 'src/common/enum/roles.enum';
 
 export class RegisterDto {
   @IsEmail()
@@ -9,8 +9,8 @@ export class RegisterDto {
   @MinLength(6)
   password: string;
 
-  // hh domeniga mos: candidate/employer role tanlab ro‘yxatdan o‘tishi mumkin
-  @IsOptional()
+  // HH loyihada kerak: kim ro‘yxatdan o‘tyapti (EMPLOYER/CANDIDATE)
+  // Hozircha sizning rollar: TEACHER/STUDENT
   @IsEnum(Roles)
-  role?: Roles;
+  role: Roles;
 }

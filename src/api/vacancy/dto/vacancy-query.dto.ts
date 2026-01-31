@@ -1,4 +1,5 @@
-import { IsEnum, IsNumberString, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { EmploymentType } from 'src/core/entity/vacancy.entity';
 
 export class VacancyQueryDto {
@@ -15,10 +16,15 @@ export class VacancyQueryDto {
   employmentType?: EmploymentType;
 
   @IsOptional()
-  @IsNumberString()
-  page?: string;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
 
   @IsOptional()
-  @IsNumberString()
-  limit?: string;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit?: number;
 }

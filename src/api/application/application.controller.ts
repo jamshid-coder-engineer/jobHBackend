@@ -1,49 +1,50 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 
 import { ApplicationService } from './application.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
+import { ApplicationQueryDto } from './dto/application-query.dto';
 
 import { AuthGuard } from 'src/common/guard/authGuard';
 import { RolesGuard } from 'src/common/guard/roleGuard';
 import { accessRoles } from 'src/common/decorator/roles.decorator';
 import { CurrentUser } from 'src/common/decorator/currentUser.decorator';
 import { Roles } from 'src/common/enum/roles.enum';
+import { Query } from '@nestjs/common';
+
 
 @Controller('applications')
 @UseGuards(AuthGuard, RolesGuard)
 export class ApplicationController {
   constructor(private readonly applicationService: ApplicationService) {}
 
-  // STUDENT apply
-  @Post()
-  @accessRoles(Roles.STUDENT)
-  apply(@CurrentUser() user: any, @Body() dto: CreateApplicationDto) {
-    return this.applicationService.apply(user, dto);
-  }
+ @Post()
+@accessRoles(Roles.STUDENT)
+apply(@CurrentUser() user: any, @Body() dto: CreateApplicationDto) {
+  return this.applicationService.apply(user, dto);
+}
 
-  // STUDENT my applications
-  @Get('me')
-  @accessRoles(Roles.STUDENT)
-  my(@CurrentUser() user: any) {
-    return this.applicationService.myApplications(user);
-  }
+@Get('me')
+@accessRoles(Roles.STUDENT)
+my(@CurrentUser() user: any, @Query('page') page?: string, @Query('limit') limit?: string) {
+  return this.applicationService.myApplications(user, {
+    skip: Number(page || 1),
+    take: Number(limit || 10),
+  });
+}
 
-  // TEACHER applications for my vacancies
-  @Get('employer')
-  @accessRoles(Roles.TEACHER)
-  employer(@CurrentUser() user: any) {
-    return this.applicationService.employerApplications(user);
-  }
+@Get('employer')
+@accessRoles(Roles.TEACHER)
+employer(@CurrentUser() user: any, @Query('page') page?: string, @Query('limit') limit?: string) {
+  return this.applicationService.employerApplications(user, {
+    skip: Number(page || 1),
+    take: Number(limit || 10),
+  });
+}
 
-  // TEACHER owner OR ADMIN status update
-  @Patch(':id/status')
-  @accessRoles(Roles.TEACHER, Roles.ADMIN, Roles.SUPER_ADMIN)
-  updateStatus(
-    @CurrentUser() user: any,
-    @Param('id') id: string,
-    @Body() dto: UpdateApplicationStatusDto,
-  ) {
-    return this.applicationService.updateStatus(user, id, dto);
-  }
+@Patch(':id/status')
+@accessRoles(Roles.TEACHER, Roles.ADMIN, Roles.SUPER_ADMIN)
+updateStatus(@CurrentUser() user: any, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateApplicationStatusDto) {
+  return this.applicationService.updateApplicationStatus(user, id, dto);
+}
 }

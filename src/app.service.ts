@@ -66,12 +66,9 @@ class AppService {
       }),
     );
 
-    // Static uploads
-    const staticFolder = join(__dirname, `../${config.UPLOAD.FOLDER}`);
-    app.use(
-      `${config.APP.API_PREFIX}/${config.UPLOAD.FOLDER}`,
-      express.static(staticFolder),
-    );
+    const staticFile = join(__dirname, `../${config.UPLOAD.FOLDER}`);
+    app.use(`/${config.APP.API_PREFIX}/${config.UPLOAD.FOLDER}`, express.static(staticFile));
+
 
     // Swagger
     const swaggerConfig = new DocumentBuilder()
