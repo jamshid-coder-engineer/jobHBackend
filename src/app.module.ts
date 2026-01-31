@@ -1,0 +1,37 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule } from '@nestjs/config';
+
+import { config } from './config';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+
+    TypeOrmModule.forRootAsync({
+      useFactory: async () => {
+        console.log('⏳ Connecting to PostgreSQL...');
+
+        return {
+          type: 'postgres' as const,
+          url: config.DB.URL,
+          synchronize: true, // hozircha dev uchun
+          autoLoadEntities: true,
+
+          entities: ['dist/core/entity/*.entity{.ts,.js}'],
+
+          ssl:
+            config.APP.NODE_ENV === 'production'
+              ? { rejectUnauthorized: false }
+              : false,
+        };
+      },
+    }),
+
+    JwtModule.register({ global: true }),
+
+    
+  ],
+})
+export class AppModule {}
