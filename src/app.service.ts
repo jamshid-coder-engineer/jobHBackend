@@ -12,7 +12,6 @@ import { join } from 'path';
 import { HttpAdapterHost } from '@nestjs/core';
 import { AllExceptionsFilter } from './infrastructure/exception/All-exception-filter';
 
-
 import { AppModule } from './app.module';
 import { config } from './config';
 
@@ -38,8 +37,8 @@ class AppService {
     app.useGlobalInterceptors(
       new ClassSerializerInterceptor(app.get(Reflector)),
     );
-const httpAdapter = app.get(HttpAdapterHost);
-app.useGlobalFilters(new AllExceptionsFilter(httpAdapter));
+    const httpAdapter = app.get(HttpAdapterHost);
+    app.useGlobalFilters(new AllExceptionsFilter(httpAdapter));
 
     // Validation
     app.useGlobalPipes(
@@ -89,8 +88,9 @@ app.useGlobalFilters(new AllExceptionsFilter(httpAdapter));
     SwaggerModule.setup('api', app, document);
 
     await app.listen(config.APP.PORT);
-    console.log(`🚀 EduCRM running: http://localhost:${config.APP.PORT}`);
+    console.log(`🚀 HH Job API: http://localhost:${config.APP.PORT}${config.APP.API_PREFIX}`);
     console.log(`📚 Swagger: http://localhost:${config.APP.PORT}/api`);
+
   }
 }
 

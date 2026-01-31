@@ -4,6 +4,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
 
 import { config } from './config';
+import { AuthModule } from './api/auth/auth.module';
+import { CompanyModule } from './api/company/company.module';
+import { VacancyModule } from './api/vacancy/vacancy.module';
+import { ResumeModule } from './api/resume/resume.module';
+import { ApplicationModule } from './api/application/application.module';
+import { TokenModule } from './infrastructure';
 
 @Module({
   imports: [
@@ -30,8 +36,12 @@ import { config } from './config';
     }),
 
     JwtModule.register({ global: true }),
-
-    
+AuthModule,
+CompanyModule,
+VacancyModule,
+ResumeModule,
+ApplicationModule,
+TokenModule
   ],
 })
 export class AppModule {}
