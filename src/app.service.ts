@@ -94,7 +94,7 @@ exceptionFactory: (errors) => {
     SwaggerModule.setup('api', app, document);
 
     await app.listen(config.APP.PORT);
-    console.log(`🚀 HH Job API: http:
+    console.log(`🚀 HH Job API: http://localhost:${config.APP.PORT}`);
     console.log(`📚 Swagger: http://localhost:${config.APP.PORT}/api`);
 
   }
