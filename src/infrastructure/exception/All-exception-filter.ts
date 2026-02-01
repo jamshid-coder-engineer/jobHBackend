@@ -11,8 +11,28 @@ import type { Request } from 'express';
 import { QueryFailedError } from 'typeorm';
 import * as geoip from 'geoip-lite';
 
-@Catch()
+function defaultErrorName(status: number) {
+  switch (status) {
+    case 400:
+      return 'Bad Request';
+    case 401:
+      return 'Unauthorized';
+    case 403:
+      return 'Forbidden';
+    case 404:
+      return 'Not Found';
+    case 409:
+      return 'Conflict';
+    case 422:
+      return 'Unprocessable Entity';
+    case 429:
+      return 'Too Many Requests';
+    default:
+      return status >= 500 ? 'Internal Server Error' : 'Error';
+  }
+}
 
+@Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
@@ -26,56 +46,61 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Internal server error';
-    let errorType = 'InternalServerError';
+    let errorType = defaultErrorName(httpStatus);
 
-    // 1) NestJS HttpException
     if (exception instanceof HttpException) {
       httpStatus = exception.getStatus();
-      const responseBody = exception.getResponse();
+      const response = exception.getResponse();
+
+      errorType = defaultErrorName(httpStatus);
+
+      if (typeof response === 'string') {
+        message = response;
+      } else if (typeof response === 'object' && response !== null) {
+        const resp: any = response;
+
+        if (resp.message !== undefined) {
+          message = resp.message;
+        } else if (resp.error !== undefined) {
+          message = resp.error;
+        }
+
+        if (typeof resp.error === 'string' && resp.error.trim() !== '') {
+          errorType = resp.error;
+        }
+      }
 
       if (httpStatus === 429) {
-        message = 'Too many requests';
-        errorType = 'TooManyRequests';
-      } else if (typeof responseBody === 'string') {
-        message = responseBody;
-      } else if (typeof responseBody === 'object' && responseBody !== null) {
-        const msg = (responseBody as any).message;
-        message = Array.isArray(msg)
-          ? msg
-          : msg || (responseBody as any).error || message;
-
-        errorType = (responseBody as any).error || errorType;
+        errorType = 'Too Many Requests';
+        if (message === 'Internal server error') message = 'Too many requests';
       }
-    }
-
-    // 2) TypeORM QueryFailedError (DB errors)
-    else if (exception instanceof QueryFailedError) {
+    } else if (exception instanceof QueryFailedError) {
       const code = (exception as any).code;
 
       if (code === '23505') {
         httpStatus = HttpStatus.CONFLICT;
-        message = 'Duplicate entry';
         errorType = 'Conflict';
+        message = 'Duplicate entry';
       } else {
         httpStatus = HttpStatus.BAD_REQUEST;
+        errorType = 'Database Error';
         message = 'Database error';
-        errorType = 'DatabaseError';
       }
-    }
-
-    // 3) Sizning ValidationPipe exceptionFactory() qaytargan oddiy object xatolaringiz
-    else if (
+    } else if (
       exception &&
       typeof exception === 'object' &&
       'statusCode' in exception
     ) {
       const errObj = exception as any;
       httpStatus = errObj.statusCode || HttpStatus.INTERNAL_SERVER_ERROR;
-      message = errObj.message || message;
-      errorType = errObj.error || errorType;
+      message = errObj.message ?? message;
+      errorType = errObj.error || defaultErrorName(httpStatus);
+    } else {
+      httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
+      errorType = defaultErrorName(httpStatus);
+      message = 'Internal server error';
     }
 
-    // IP + country + device logging
     const xff = request.headers['x-forwarded-for'];
     const clientIp =
       (typeof xff === 'string' ? xff.split(',')[0].trim() : undefined) ||
@@ -88,7 +113,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const logPayload = {
       statusCode: httpStatus,
-      errorType,
+      error: errorType,
       message,
       path: request.originalUrl || request.url,
       method: request.method,
@@ -101,13 +126,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (httpStatus >= 500) {
       this.logger.error(
         `SERVER ERROR | ${JSON.stringify(logPayload)}`,
-        (exception as Error)?.stack || undefined,
+        (exception as any)?.stack || undefined,
       );
     } else {
       this.logger.warn(`CLIENT ERROR | ${JSON.stringify(logPayload)}`);
     }
 
-    // Client response
+    // -------- Response (uniform) --------
     const responseBody = {
       statusCode: httpStatus,
       error: errorType,

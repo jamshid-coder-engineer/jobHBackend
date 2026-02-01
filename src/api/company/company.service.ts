@@ -27,7 +27,6 @@ import { UpdateCompanyDto } from './dto/com.update.dto';
 import { removeUploadFileSafe } from '../../infrastructure/fileServise/file-remove';
 import { config } from 'src/config';
 
-
 @Injectable()
 export class CompanyService extends BaseService<
   CreateCompanyDto,
@@ -43,12 +42,11 @@ export class CompanyService extends BaseService<
     super(companyRepo);
   }
 
-  // TEACHER -> company create (1 ta teacher = 1 ta company)
   async createCompany(
     currentUser: { id: string; role: Roles },
     dto: CreateCompanyDto,
   ): Promise<ISuccess> {
-    if (currentUser.role !== Roles.TEACHER) {
+    if (currentUser.role !== Roles.EMPLOYER) {
       throw new ForbiddenException('Only employer can create company');
     }
 
@@ -60,7 +58,8 @@ export class CompanyService extends BaseService<
     const exists = await this.companyRepo.findOne({
       where: { owner: { id: owner.id }, isDeleted: false } as any,
     });
-    if (exists) throw new ConflictException('Company already exists for this user');
+    if (exists)
+      throw new ConflictException('Company already exists for this user');
 
     const company = this.companyRepo.create({
       ...dto,
@@ -72,9 +71,8 @@ export class CompanyService extends BaseService<
     return successRes(saved, 201);
   }
 
-  // TEACHER -> my company profile
   async myCompany(currentUser: { id: string; role: Roles }): Promise<ISuccess> {
-    if (currentUser.role !== Roles.TEACHER) throw new ForbiddenException();
+    if (currentUser.role !== Roles.EMPLOYER) throw new ForbiddenException();
 
     const company = await this.companyRepo.findOne({
       where: { owner: { id: currentUser.id }, isDeleted: false } as any,
@@ -84,12 +82,11 @@ export class CompanyService extends BaseService<
     return successRes(company);
   }
 
-  // TEACHER -> update my company
   async updateMyCompany(
     currentUser: { id: string; role: Roles },
     dto: UpdateCompanyDto,
   ): Promise<ISuccess> {
-    if (currentUser.role !== Roles.TEACHER) throw new ForbiddenException();
+    if (currentUser.role !== Roles.EMPLOYER) throw new ForbiddenException();
 
     const company = await this.companyRepo.findOne({
       where: { owner: { id: currentUser.id }, isDeleted: false } as any,
@@ -106,29 +103,28 @@ export class CompanyService extends BaseService<
   }
 
   async updateMyLogo(
-  currentUser: { id: string; role: Roles },
-  filename: string,
-) {
-  if (currentUser.role !== Roles.TEACHER) throw new ForbiddenException();
+    currentUser: { id: string; role: Roles },
+    filename: string,
+  ) {
+    if (currentUser.role !== Roles.EMPLOYER) throw new ForbiddenException();
 
-  const company = await this.companyRepo.findOne({
-    where: { owner: { id: currentUser.id }, isDeleted: false } as any,
-  });
-  if (!company) throw new NotFoundException('Company not found');
+    const company = await this.companyRepo.findOne({
+      where: { owner: { id: currentUser.id }, isDeleted: false } as any,
+    });
+    if (!company) throw new NotFoundException('Company not found');
 
-  // eski faylni o‘chiramiz
-  await removeUploadFileSafe(company.logo);
+    await removeUploadFileSafe(company.logo);
 
-  // yangisini DB ga yozamiz
-  company.logo = `${config.UPLOAD.FOLDER}/${filename}`;
-  const saved = await this.companyRepo.save(company);
+    company.logo = `${config.UPLOAD.FOLDER}/${filename}`;
+    const saved = await this.companyRepo.save(company);
 
-  return successRes(saved);
-}
-
+    return successRes(saved);
+  }
 
   // PUBLIC -> company list (pagination) (frontend uchun foydali)
-  async listPublic(options?: IFindOptions<Company>): Promise<IResponsePagination> {
+  async listPublic(
+    options?: IFindOptions<Company>,
+  ): Promise<IResponsePagination> {
     return RepositoryPager.findAll(this.companyRepo, {
       ...(options || {}),
       where: {
@@ -159,33 +155,30 @@ export class CompanyService extends BaseService<
     });
   }
 
-async toggleCompanyStatus(
-  currentUser: { id: string; role: Roles },
-  companyId: string,
-) {
-  if (![Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role)) {
-    throw new ForbiddenException();
-  }
-  return super.updateStatus(companyId);
-}
-
-async listAdmin(
-  currentUser: { id: string; role: Roles },
-  page = 1,
-  limit = 10,
-) {
-  if (![Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role)) {
-    throw new ForbiddenException();
+  async toggleCompanyStatus(
+    currentUser: { id: string; role: Roles },
+    companyId: string,
+  ) {
+    if (![Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role)) {
+      throw new ForbiddenException();
+    }
+    return super.updateStatus(companyId);
   }
 
-  return RepositoryPager.findAll(this.companyRepo, {
-    where: { isDeleted: false } as any,
-    skip: page,
-    take: limit,
-    order: { createdAt: 'DESC' as any },
-  });
-}
+  async listAdmin(
+    currentUser: { id: string; role: Roles },
+    page = 1,
+    limit = 10,
+  ) {
+    if (![Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role)) {
+      throw new ForbiddenException();
+    }
 
-
-
+    return RepositoryPager.findAll(this.companyRepo, {
+      where: { isDeleted: false } as any,
+      skip: page,
+      take: limit,
+      order: { createdAt: 'DESC' as any },
+    });
+  }
 }

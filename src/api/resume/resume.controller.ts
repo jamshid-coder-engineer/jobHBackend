@@ -14,18 +14,19 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadedFile, UseInterceptors } from '@nestjs/common';
 import { pdfMulterOptions } from '../../infrastructure/fileServise/multer-pdf';
 
-import { ApiBody, ApiConsumes, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-
+@ApiTags('resumes')
+@ApiBearerAuth('bearer')
 @Controller('resumes')
 @UseGuards(AuthGuard, RolesGuard)
 export class ResumeController {
-  constructor(private readonly resumeService: ResumeService) { }
+  constructor(private readonly resumeService: ResumeService) {}
 
   @ApiBearerAuth()
   @Post()
   @UseGuards(AuthGuard, RolesGuard)
-  @accessRoles(Roles.STUDENT)
+  @accessRoles(Roles.CANDIDATE)
   create(@CurrentUser() user: any, @Body() dto: CreateResumeDto) {
     return this.resumeService.createResume(user, dto);
   }
@@ -33,38 +34,39 @@ export class ResumeController {
   @ApiBearerAuth()
   @Get('me')
   @UseGuards(AuthGuard, RolesGuard)
-  @accessRoles(Roles.STUDENT)
+  @accessRoles(Roles.CANDIDATE)
   me(@CurrentUser() user: any) {
     return this.resumeService.myResume(user);
   }
 
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
+      required: ['file'],
       properties: {
-        file: { type: 'string', format: 'binary' },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Resume CV PDF file',
+        },
       },
     },
   })
-
-  @ApiBearerAuth()
   @Patch('me/cv')
   @UseGuards(AuthGuard, RolesGuard)
-  @accessRoles(Roles.STUDENT)
+  @accessRoles(Roles.CANDIDATE)
   @UseInterceptors(FileInterceptor('file', pdfMulterOptions))
   uploadCv(@CurrentUser() user: any, @UploadedFile() file: any) {
     return this.resumeService.updateMyCv(user, file.filename);
   }
 
-
   @ApiBearerAuth()
   @Patch('me')
   @UseGuards(AuthGuard, RolesGuard)
-  @accessRoles(Roles.STUDENT)
+  @accessRoles(Roles.CANDIDATE)
   updateMe(@CurrentUser() user: any, @Body() dto: UpdateResumeDto) {
     return this.resumeService.updateMyResume(user, dto);
   }
-
 }

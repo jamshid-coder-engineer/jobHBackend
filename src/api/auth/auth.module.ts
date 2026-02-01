@@ -11,7 +11,7 @@ import { AppController } from 'src/app.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User]), TokenModule],
-  controllers: [AuthController,AppController],
+  controllers: [AuthController, AppController],
   providers: [AuthService, CryptoService],
   exports: [AuthService],
 })

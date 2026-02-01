@@ -4,10 +4,11 @@ import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { config } from 'src/config';
 
-export const UPLOAD_DESTINATION = join(process.cwd(), config.UPLOAD.FOLDER || 'uploads');
+export const UPLOAD_DESTINATION = join(
+  process.cwd(),
+  config.UPLOAD.FOLDER || 'uploads',
+);
 
-
-// Papka bo‘lmasa yaratadi
 export const createDestination = () => {
   if (!existsSync(UPLOAD_DESTINATION)) {
     mkdirSync(UPLOAD_DESTINATION, { recursive: true });

@@ -1,6 +1,6 @@
 export interface ITokenPayload {
   id: string;
-  role: string;      // keyin Roles enum qilamiz
+  role: string;
   isActive?: boolean;
 
   iat?: number;

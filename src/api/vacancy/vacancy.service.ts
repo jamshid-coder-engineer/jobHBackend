@@ -11,7 +11,7 @@ import { Company } from 'src/core/entity/company.entity';
 
 import { Roles } from 'src/common/enum/roles.enum';
 
-import { BaseService } from 'src/infrastructure/base/base.service'; // sening path bo‘yicha
+import { BaseService } from 'src/infrastructure/base/base.service';
 import { successRes } from 'src/infrastructure/response/success.response';
 import {
   IResponsePagination,
@@ -36,23 +36,19 @@ export class VacancyService extends BaseService<
     super(vacancyRepo);
   }
 
-  // PUBLIC details
-async findOneVacancy(id: string): Promise<ISuccess> {
-  const vacancy = await this.vacancyRepo.findOne({
-    where: { id, isDeleted: false } as any,
-    relations: ['company'],
-  });
+  async findOneVacancy(id: string): Promise<ISuccess> {
+    const vacancy = await this.vacancyRepo.findOne({
+      where: { id, isDeleted: false } as any,
+      relations: ['company'],
+    });
 
-  if (!vacancy) throw new NotFoundException('Vacancy not found');
+    if (!vacancy) throw new NotFoundException('Vacancy not found');
 
-  // Public detail bo‘lgani uchun inactive bo‘lsa ko‘rsatmaymiz
-  if (!vacancy.isActive) throw new NotFoundException('Vacancy not found');
+    if (!vacancy.isActive) throw new NotFoundException('Vacancy not found');
 
-  return successRes(vacancy);
-}
+    return successRes(vacancy);
+  }
 
-
-  // PUBLIC list (pagination + filter)
   async listPublic(query: VacancyQueryDto): Promise<IResponsePagination> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
@@ -75,7 +71,7 @@ async findOneVacancy(id: string): Promise<ISuccess> {
     currentUser: { id: string; role: Roles },
     query: VacancyQueryDto,
   ): Promise<IResponsePagination> {
-    if (currentUser.role !== Roles.TEACHER) throw new ForbiddenException();
+    if (currentUser.role !== Roles.EMPLOYER) throw new ForbiddenException();
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
@@ -102,7 +98,7 @@ async findOneVacancy(id: string): Promise<ISuccess> {
     currentUser: { id: string; role: Roles },
     dto: CreateVacancyDto,
   ): Promise<ISuccess> {
-    if (currentUser.role !== Roles.TEACHER) {
+    if (currentUser.role !== Roles.EMPLOYER) {
       throw new ForbiddenException('Only employer can create vacancy');
     }
 
@@ -137,7 +133,7 @@ async findOneVacancy(id: string): Promise<ISuccess> {
 
     const isAdmin = [Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role);
     const isOwner =
-      currentUser.role === Roles.TEACHER &&
+      currentUser.role === Roles.EMPLOYER &&
       vacancy.company?.owner?.id === currentUser.id;
 
     if (!isAdmin && !isOwner) throw new ForbiddenException();
@@ -149,31 +145,29 @@ async findOneVacancy(id: string): Promise<ISuccess> {
   }
 
   async toggleVacancyStatus(
-  currentUser: { id: string; role: Roles },
-  vacancyId: string,
-) {
-  if (![Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role)) {
-    throw new ForbiddenException();
-  }
-  return super.updateStatus(vacancyId);
-}
-
-async listAdmin(
-  currentUser: { id: string; role: Roles },
-  page = 1,
-  limit = 10,
-) {
-  if (![Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role)) {
-    throw new ForbiddenException();
+    currentUser: { id: string; role: Roles },
+    vacancyId: string,
+  ) {
+    if (![Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role)) {
+      throw new ForbiddenException();
+    }
+    return super.updateStatus(vacancyId);
   }
 
-  return RepositoryPager.findAll(this.vacancyRepo, {
-    where: { isDeleted: false } as any,
-    skip: page,
-    take: limit,
-    order: { createdAt: 'DESC' as any },
-  });
-}
+  async listAdmin(
+    currentUser: { id: string; role: Roles },
+    page = 1,
+    limit = 10,
+  ) {
+    if (![Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role)) {
+      throw new ForbiddenException();
+    }
 
-
+    return RepositoryPager.findAll(this.vacancyRepo, {
+      where: { isDeleted: false } as any,
+      skip: page,
+      take: limit,
+      order: { createdAt: 'DESC' as any },
+    });
+  }
 }

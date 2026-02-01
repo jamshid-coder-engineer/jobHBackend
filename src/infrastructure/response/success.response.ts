@@ -46,7 +46,7 @@ export class RepositoryPager {
   private static normalizePagination<T>(
     options?: IFindOptions<T>,
   ): FindManyOptions<T> {
-    let page = (options?.skip ?? RepositoryPager.DEFAULT_PAGE) - 1;
+    const page = (options?.skip ?? RepositoryPager.DEFAULT_PAGE) - 1;
     return {
       ...options,
       take: options?.take,

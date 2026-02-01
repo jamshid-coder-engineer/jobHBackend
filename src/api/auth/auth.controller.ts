@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
@@ -11,10 +11,17 @@ import { RolesGuard } from 'src/common/guard/roleGuard';
 import { accessRoles } from 'src/common/decorator/roles.decorator';
 import { CurrentUser } from 'src/common/decorator/currentUser.decorator';
 
+import { TokenService } from 'src/infrastructure/token/Token';
+import { config } from 'src/config';
+import { successRes } from 'src/infrastructure/response/success.response';
+
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly tokenService: TokenService,
+  ) {}
 
   @Post('register')
   @accessRoles('public')
@@ -24,11 +31,30 @@ export class AuthController {
 
   @Post('login')
   @accessRoles('public')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.login(dto);
+
+    
+    const refreshToken = (result as any).data.refreshToken as string;
+
+    
+    this.tokenService.writeCookie(
+      res,
+      'refreshToken',
+      refreshToken,
+      config.JWT.REFRESH_EXPIRES_IN, 
+    );
+
+    
+    const { refreshToken: _rt, ...dataWithoutRefresh } = (result as any).data;
+
+    return {
+      ...(result as any),
+      data: dataWithoutRefresh,
+    };
   }
 
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @Get('me')
   @UseGuards(AuthGuard, RolesGuard)
   me(@CurrentUser() user: any) {
@@ -38,16 +64,23 @@ export class AuthController {
   @Post('refresh')
   @accessRoles('public')
   refresh(@Req() req: Request) {
-    const token =
-      (req.headers['x-refresh-token'] as string) ||
-      (req.body?.refreshToken as string);
-
-    return this.authService.refresh(token);
+    
+    const token = req.cookies?.refreshToken as string | undefined;
+    return this.authService.refresh(token || '');
   }
 
   @Post('logout')
   @accessRoles('public')
-  logout() {
-    return this.authService.logout();
+  logout(@Res({ passthrough: true }) res: Response) {
+    
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: config.APP.NODE_ENV === 'production',
+      sameSite: config.APP.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+    });
+
+    return successRes({ message: 'Logged out' });
   }
 }
+

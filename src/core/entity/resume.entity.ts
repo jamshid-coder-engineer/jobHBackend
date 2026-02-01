@@ -12,7 +12,7 @@ export class Resume extends BaseEntity {
   fullName?: string;
 
   @Column({ type: 'varchar', nullable: true })
-  title?: string; // masalan: "Frontend Developer"
+  title?: string;
 
   @Column({ type: 'text', nullable: true })
   about?: string;
@@ -24,10 +24,10 @@ export class Resume extends BaseEntity {
   phone?: string;
 
   @Column({ type: 'varchar', nullable: true })
-  skills?: string; // hozircha text; keyin array/json qilamiz
+  skills?: string;
 
   @Column({ type: 'varchar', nullable: true })
-  cvFile?: string; // keyin upload (pdf)
+  cvFile?: string;
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;

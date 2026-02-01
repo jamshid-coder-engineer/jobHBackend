@@ -10,7 +10,7 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', select: false })
   passwordHash: string;
 
-  @Column({ type: 'enum', enum: Roles, default: Roles.STUDENT })
+  @Column({ type: 'enum', enum: Roles, default: Roles.CANDIDATE })
   role: Roles;
 
   @Column({ type: 'boolean', default: true })

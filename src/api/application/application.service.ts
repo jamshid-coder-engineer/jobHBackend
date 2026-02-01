@@ -7,7 +7,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { Application, ApplicationStatus } from 'src/core/entity/application.entity';
+import {
+  Application,
+  ApplicationStatus,
+} from 'src/core/entity/application.entity';
 import { Vacancy } from 'src/core/entity/vacancy.entity';
 import { User } from 'src/core/entity/user.entity';
 
@@ -42,9 +45,11 @@ export class ApplicationService extends BaseService<
     super(appRepo);
   }
 
-  // STUDENT -> apply
-  async apply(currentUser: { id: string; role: Roles }, dto: CreateApplicationDto): Promise<ISuccess> {
-    if (currentUser.role !== Roles.STUDENT) {
+  async apply(
+    currentUser: { id: string; role: Roles },
+    dto: CreateApplicationDto,
+  ): Promise<ISuccess> {
+    if (currentUser.role !== Roles.CANDIDATE) {
       throw new ForbiddenException('Only candidate can apply');
     }
 
@@ -57,7 +62,8 @@ export class ApplicationService extends BaseService<
       where: { id: dto.vacancyId } as any,
     });
     if (!vacancy) throw new NotFoundException('Vacancy not found');
-    if (!vacancy.isActive) throw new ForbiddenException('Vacancy is not active');
+    if (!vacancy.isActive)
+      throw new ForbiddenException('Vacancy is not active');
 
     const exists = await this.appRepo.findOne({
       where: {
@@ -66,7 +72,8 @@ export class ApplicationService extends BaseService<
         applicant: { id: user.id },
       } as any,
     });
-    if (exists) throw new ConflictException('You already applied to this vacancy');
+    if (exists)
+      throw new ConflictException('You already applied to this vacancy');
 
     const application = this.appRepo.create({
       vacancy,
@@ -80,31 +87,29 @@ export class ApplicationService extends BaseService<
     return successRes(saved, 201);
   }
 
-  // STUDENT -> my applications (pagination)
   async myApplications(
     currentUser: { id: string; role: Roles },
     options?: IFindOptions<Application>,
   ): Promise<IResponsePagination> {
-    if (currentUser.role !== Roles.STUDENT) throw new ForbiddenException();
+    if (currentUser.role !== Roles.CANDIDATE) throw new ForbiddenException();
 
-   return RepositoryPager.findAll(this.appRepo, {
-  ...(options || {}),
-  relations: ['vacancy', 'vacancy.company'],
-  where: {
-    isDeleted: false,
-    applicant: { id: currentUser.id },
-    ...(options?.where || {}),
-  } as any,
-  order: options?.order || ({ createdAt: 'DESC' } as any),
-});
+    return RepositoryPager.findAll(this.appRepo, {
+      ...(options || {}),
+      relations: ['vacancy', 'vacancy.company'],
+      where: {
+        isDeleted: false,
+        applicant: { id: currentUser.id },
+        ...(options?.where || {}),
+      } as any,
+      order: options?.order || ({ createdAt: 'DESC' } as any),
+    });
   }
 
-  // TEACHER -> applications for my vacancies (pagination)
   async employerApplications(
     currentUser: { id: string; role: Roles },
     options?: IFindOptions<Application>,
   ): Promise<IResponsePagination> {
-    if (currentUser.role !== Roles.TEACHER) throw new ForbiddenException();
+    if (currentUser.role !== Roles.EMPLOYER) throw new ForbiddenException();
 
     return RepositoryPager.findAll(this.appRepo, {
       ...(options || {}),
@@ -118,7 +123,6 @@ export class ApplicationService extends BaseService<
     });
   }
 
-  // TEACHER owner OR ADMIN -> status update
   async updateApplicationStatus(
     currentUser: { id: string; role: Roles },
     applicationId: string,
@@ -131,7 +135,7 @@ export class ApplicationService extends BaseService<
 
     const isAdmin = [Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role);
     const isOwner =
-      currentUser.role === Roles.TEACHER &&
+      currentUser.role === Roles.EMPLOYER &&
       application.vacancy?.company?.owner?.id === currentUser.id;
 
     if (!isAdmin && !isOwner) throw new ForbiddenException();
@@ -141,5 +145,4 @@ export class ApplicationService extends BaseService<
 
     return successRes(saved);
   }
-
 }

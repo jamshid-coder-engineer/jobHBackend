@@ -23,7 +23,7 @@ import { AdminModule } from './api/admin/admin.module';
         return {
           type: 'postgres' as const,
           url: config.DB.URL,
-          synchronize: true, // hozircha dev uchun
+          synchronize: true,
           autoLoadEntities: true,
 
           entities: ['dist/core/entity/*.entity{.ts,.js}'],
@@ -37,13 +37,13 @@ import { AdminModule } from './api/admin/admin.module';
     }),
 
     JwtModule.register({ global: true }),
-AuthModule,
-CompanyModule,
-VacancyModule,
-ResumeModule,
-ApplicationModule,
-TokenModule,
-AdminModule
+    AuthModule,
+    CompanyModule,
+    VacancyModule,
+    ResumeModule,
+    ApplicationModule,
+    TokenModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

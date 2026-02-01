@@ -8,7 +8,6 @@ import {
 import { RepositoryPager } from '../pagination/RepositoryPager';
 import { successRes } from '../response/success.response';
 
-// Bazaviy entitylarda bo‘lishi mumkin bo‘lgan fieldlar (optional)
 type SoftDeletable = { isDeleted?: boolean };
 type Activatable = { isActive?: boolean };
 
@@ -57,7 +56,7 @@ export class BaseService<CreateDto, UpdateDto, Entity extends object> {
     const data = await this.repository.findOne({
       select: options?.select || ({} as any),
       relations: options?.relations || [],
-      where: { id, ...(options?.where as any) } as any,
+      where: { id, ...(options?.where as any) },
     } as any);
 
     if (!data) throw new NotFoundException('Entity not found');
@@ -79,10 +78,6 @@ export class BaseService<CreateDto, UpdateDto, Entity extends object> {
     return successRes({});
   }
 
-  /**
-   * softDelete ishlashi uchun Entity’da `isDeleted: boolean` field bo‘lishi kerak.
-   * Bu field BaseEntity’da bo‘lsa ideal.
-   */
   async softDelete(id: string): Promise<ISuccess> {
     const entity = (await this.repository.findOne({
       where: { id } as any,
@@ -100,12 +95,9 @@ export class BaseService<CreateDto, UpdateDto, Entity extends object> {
     entity.isDeleted = true;
     const data = await this.repository.save(entity as any);
 
-    return successRes({ isDeleted: (data as any).isDeleted });
+    return successRes({ isDeleted: data.isDeleted });
   }
 
-  /**
-   * updateStatus ishlashi uchun Entity’da `isActive: boolean` field bo‘lishi kerak.
-   */
   async updateStatus(id: string): Promise<ISuccess> {
     const entity = (await this.repository.findOne({
       where: { id } as any,
@@ -123,6 +115,6 @@ export class BaseService<CreateDto, UpdateDto, Entity extends object> {
     entity.isActive = !entity.isActive;
     const data = await this.repository.save(entity as any);
 
-    return successRes({ isActive: (data as any).isActive });
+    return successRes({ isActive: data.isActive });
   }
 }

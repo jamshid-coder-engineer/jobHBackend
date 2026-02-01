@@ -18,7 +18,6 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
-    // @Roles('public') bo‘lsa token shart emas
     const roles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
       ctx.getHandler(),
       ctx.getClass(),
@@ -34,7 +33,7 @@ export class AuthGuard implements CanActivate {
 
     try {
       const data = await this.tokenService.verifyAccessToken(token);
-      req.user = data; // controller/service’da req.user ishlaydi
+      req.user = data;
       return true;
     } catch (error: any) {
       if (error?.name === 'TokenExpiredError') {

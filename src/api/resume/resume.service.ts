@@ -25,9 +25,12 @@ import { UpdateResumeDto } from './dto/update-resume.dto';
 import { removeUploadFileSafe } from '../../infrastructure/fileServise/file-remove';
 import { config } from 'src/config';
 
-
 @Injectable()
-export class ResumeService extends BaseService<CreateResumeDto, UpdateResumeDto, Resume> {
+export class ResumeService extends BaseService<
+  CreateResumeDto,
+  UpdateResumeDto,
+  Resume
+> {
   constructor(
     @InjectRepository(Resume)
     private readonly resumeRepo: Repository<Resume>,
@@ -37,12 +40,11 @@ export class ResumeService extends BaseService<CreateResumeDto, UpdateResumeDto,
     super(resumeRepo);
   }
 
-  // STUDENT -> create (1 user = 1 resume)
   async createResume(
     currentUser: { id: string; role: Roles },
     dto: CreateResumeDto,
   ): Promise<ISuccess> {
-    if (currentUser.role !== Roles.STUDENT) {
+    if (currentUser.role !== Roles.CANDIDATE) {
       throw new ForbiddenException('Only candidate can create resume');
     }
 
@@ -54,7 +56,8 @@ export class ResumeService extends BaseService<CreateResumeDto, UpdateResumeDto,
     const exists = await this.resumeRepo.findOne({
       where: { owner: { id: owner.id }, isDeleted: false } as any,
     });
-    if (exists) throw new ConflictException('Resume already exists for this user');
+    if (exists)
+      throw new ConflictException('Resume already exists for this user');
 
     const resume = this.resumeRepo.create({
       owner,
@@ -66,9 +69,8 @@ export class ResumeService extends BaseService<CreateResumeDto, UpdateResumeDto,
     return successRes(saved, 201);
   }
 
-  // STUDENT -> my resume
   async myResume(currentUser: { id: string; role: Roles }): Promise<ISuccess> {
-    if (currentUser.role !== Roles.STUDENT) throw new ForbiddenException();
+    if (currentUser.role !== Roles.CANDIDATE) throw new ForbiddenException();
 
     const resume = await this.resumeRepo.findOne({
       where: { owner: { id: currentUser.id }, isDeleted: false } as any,
@@ -78,12 +80,11 @@ export class ResumeService extends BaseService<CreateResumeDto, UpdateResumeDto,
     return successRes(resume);
   }
 
-  // STUDENT -> update my resume
   async updateMyResume(
     currentUser: { id: string; role: Roles },
     dto: UpdateResumeDto,
   ): Promise<ISuccess> {
-    if (currentUser.role !== Roles.STUDENT) throw new ForbiddenException();
+    if (currentUser.role !== Roles.CANDIDATE) throw new ForbiddenException();
 
     const resume = await this.resumeRepo.findOne({
       where: { owner: { id: currentUser.id }, isDeleted: false } as any,
@@ -99,29 +100,22 @@ export class ResumeService extends BaseService<CreateResumeDto, UpdateResumeDto,
     return successRes(updated);
   }
 
-  async updateMyCv(
-  currentUser: { id: string; role: Roles },
-  filename: string,
-) {
-  if (currentUser.role !== Roles.STUDENT) throw new ForbiddenException();
+  async updateMyCv(currentUser: { id: string; role: Roles }, filename: string) {
+    if (currentUser.role !== Roles.CANDIDATE) throw new ForbiddenException();
 
-  const resume = await this.resumeRepo.findOne({
-    where: { owner: { id: currentUser.id }, isDeleted: false } as any,
-  });
-  if (!resume) throw new NotFoundException('Resume not found');
+    const resume = await this.resumeRepo.findOne({
+      where: { owner: { id: currentUser.id }, isDeleted: false } as any,
+    });
+    if (!resume) throw new NotFoundException('Resume not found');
 
-  // eski pdf ni o‘chiramiz
-  await removeUploadFileSafe(resume.cvFile);
+    await removeUploadFileSafe(resume.cvFile);
 
-  // yangisini DB ga yozamiz
-  resume.cvFile = `${config.UPLOAD.FOLDER}/cv/${filename}`;
-  const saved = await this.resumeRepo.save(resume);
+    resume.cvFile = `${config.UPLOAD.FOLDER}/cv/${filename}`;
+    const saved = await this.resumeRepo.save(resume);
 
-  return successRes(saved);
-}
+    return successRes(saved);
+  }
 
-
-  // ADMIN -> list all resumes (pagination) (ixtiyoriy: moderation)
   async listAll(
     currentUser: { id: string; role: Roles },
     options?: IFindOptions<Resume>,
@@ -140,7 +134,6 @@ export class ResumeService extends BaseService<CreateResumeDto, UpdateResumeDto,
     });
   }
 
-  // PUBLIC search (ixtiyoriy) — HH’da resume search admin/employerga kerak bo‘lishi mumkin
   async searchPublic(
     q?: string,
     city?: string,
@@ -150,7 +143,6 @@ export class ResumeService extends BaseService<CreateResumeDto, UpdateResumeDto,
     const where: any = { isDeleted: false, isActive: true };
 
     if (q) {
-      // title yoki fullName bo‘yicha qidiramiz
       where.title = ILike(`%${q}%`);
     }
     if (city) where.city = ILike(`%${city}%`);

@@ -16,12 +16,16 @@ export class Application extends BaseEntity {
   vacancy: Vacancy;
 
   @ManyToOne(() => User, { eager: true })
-  applicant: User; // STUDENT
+  applicant: User;
 
   @Column({ type: 'text', nullable: true })
   coverLetter: string | null;
 
-  @Column({ type: 'enum', enum: ApplicationStatus, default: ApplicationStatus.NEW })
+  @Column({
+    type: 'enum',
+    enum: ApplicationStatus,
+    default: ApplicationStatus.NEW,
+  })
   status: ApplicationStatus;
 
   @Column({ type: 'boolean', default: true })

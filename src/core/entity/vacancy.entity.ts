@@ -30,7 +30,11 @@ export class Vacancy extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   salaryTo?: string | null;
 
-  @Column({ type: 'enum', enum: EmploymentType, default: EmploymentType.FULL_TIME })
+  @Column({
+    type: 'enum',
+    enum: EmploymentType,
+    default: EmploymentType.FULL_TIME,
+  })
   employmentType: EmploymentType;
 
   @Column({ type: 'boolean', default: true })

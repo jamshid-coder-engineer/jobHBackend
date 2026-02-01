@@ -10,7 +10,7 @@ export class RepositoryPager {
     repository: Repository<T>,
     options?: IFindOptions<T>,
   ): Promise<IResponsePagination> {
-    const page = options?.skip ?? this.DEFAULT_PAGE; // bu yerda skip = page
+    const page = options?.skip ?? this.DEFAULT_PAGE;
     const pageSize = options?.take ?? this.DEFAULT_PAGE_SIZE;
 
     const [data, count] = await repository.findAndCount(
@@ -27,20 +27,20 @@ export class RepositoryPager {
       data,
       count,
       pageSize,
-      page, // <-- currentPage shu bo‘lishi kerak
+      page,
     );
   }
 
   private static normalizePagination<T>(
     options?: IFindOptions<T>,
   ): FindManyOptions<T> {
-    const page = (options?.skip ?? this.DEFAULT_PAGE) - 1; // page -> zero-based
+    const page = (options?.skip ?? this.DEFAULT_PAGE) - 1;
     const take = options?.take ?? this.DEFAULT_PAGE_SIZE;
 
     return {
       ...options,
       take,
-      skip: page * take, // offset
+      skip: page * take,
     };
   }
 }
