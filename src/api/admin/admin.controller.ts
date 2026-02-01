@@ -6,6 +6,7 @@ import { accessRoles } from 'src/common/decorator/roles.decorator';
 import { Roles, CompanyStatus, VacancyStatus } from 'src/common/enum/roles.enum';
 import { CompanyService } from 'src/api/company/company.service';
 import { VacancyService } from 'src/api/vacancy/vacancy.service';
+import { AdminService } from './admin.service'; 
 import { AdminSetPremiumDto } from 'src/api/vacancy/dto/admin-set-premium.dto';
 import { AdminRejectVacancyDto } from '../vacancy/dto/admin-reject.dto';
 
@@ -18,7 +19,14 @@ export class AdminController {
   constructor(
     private readonly companyService: CompanyService,
     private readonly vacancyService: VacancyService,
+    private readonly adminService: AdminService, 
   ) {}
+
+  @Get('statistics')
+  @ApiOperation({ summary: 'Admin uchun umumiy statistika va dashboard' })
+  getDashboardStats() {
+    return this.adminService.getDashboardStats();
+  }
 
   @Get('companies')
   @ApiOperation({ summary: 'Barcha kompaniyalarni status boyicha korish' })

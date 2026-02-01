@@ -46,16 +46,16 @@ export class VacancyController {
   submit(@CurrentUser() user: any, @Param('id') id: string) {
     return this.vacancyService.submitForModeration(user, id);
   }
-@ApiBearerAuth('bearer')
-@Patch(':id/premium')
-@UseGuards(AuthGuard, RolesGuard)
-@accessRoles(Roles.EMPLOYER, Roles.ADMIN, Roles.SUPER_ADMIN)
-buyPremium(
-  @CurrentUser() user: any,
-  @Param('id') id: string,
-  @Body() dto: BuyPremiumDto,
-) {
-  return this.vacancyService.buyPremium(user, id, dto);
-}
 
+  @ApiBearerAuth('bearer')
+  @Patch(':id/premium')
+  @UseGuards(AuthGuard, RolesGuard)
+  @accessRoles(Roles.EMPLOYER, Roles.ADMIN, Roles.SUPER_ADMIN)
+  buyPremium(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: BuyPremiumDto,
+  ) {
+    return this.vacancyService.buyPremium(user, id, dto);
+  }
 }

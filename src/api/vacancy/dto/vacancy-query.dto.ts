@@ -4,7 +4,7 @@ import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { EmploymentType } from 'src/common/enum/roles.enum';
 
 export class VacancyQueryDto {
-  @ApiPropertyOptional({ example: 'frontend', description: 'Search by title' })
+  @ApiPropertyOptional({ example: 'frontend', description: 'Search by title or company name' })
   @IsOptional()
   @IsString()
   q?: string;
@@ -21,6 +21,13 @@ export class VacancyQueryDto {
   @IsOptional()
   @IsEnum(EmploymentType)
   employmentType?: EmploymentType;
+
+  @ApiPropertyOptional({ example: 5000000, description: 'Minimum salary filter' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  minSalary?: number;
 
   @ApiPropertyOptional({ example: 1, minimum: 1 })
   @IsOptional()
