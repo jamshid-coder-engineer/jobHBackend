@@ -23,21 +23,17 @@ export const pdfMulterOptions = {
       cb(null, CV_DESTINATION);
     },
     filename: (req, file, cb) => {
-      const randomName = Array(32)
-        .fill(null)
-        .map(() => Math.round(Math.random() * 16).toString(16))
-        .join('');
-      cb(null, `${randomName}${extname(file.originalname)}`);
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      cb(null, `cv-${uniqueSuffix}${extname(file.originalname)}`);
     },
   }),
   fileFilter: (req: any, file: any, cb: any) => {
-    // faqat pdf
     if (file.mimetype === 'application/pdf') {
       cb(null, true);
     } else {
       cb(
         new HttpException(
-          `Only PDF allowed. Got ${file.mimetype}`,
+          `Only PDF files are allowed!`,
           HttpStatus.BAD_REQUEST,
         ),
         false,

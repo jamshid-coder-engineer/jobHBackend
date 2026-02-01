@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-import { EmploymentType } from 'src/core/entity/vacancy.entity';
+import { EmploymentType } from 'src/common/enum/roles.enum';
 
 export class VacancyQueryDto {
   @ApiPropertyOptional({ example: 'frontend', description: 'Search by title' })

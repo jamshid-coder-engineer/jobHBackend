@@ -1,120 +1,39 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
+import { successRes } from 'src/infrastructure/response/success.response';
+import type { ISuccess } from 'src/infrastructure/pagination/successResponse';
+import { Pager } from 'src/infrastructure/pagination/Pager';
 
 import { Vacancy } from 'src/core/entity/vacancy.entity';
+import { VacancyStatus } from 'src/common/enum/roles.enum';
 import { Company } from 'src/core/entity/company.entity';
-
-import { Roles } from 'src/common/enum/roles.enum';
-
-import { BaseService } from 'src/infrastructure/base/base.service';
-import { successRes } from 'src/infrastructure/response/success.response';
-import {
-  IResponsePagination,
-  ISuccess,
-} from 'src/infrastructure/pagination/successResponse';
-import { RepositoryPager } from 'src/infrastructure/pagination/RepositoryPager';
-
+import { CompanyStatus } from 'src/common/enum/roles.enum';
 import { CreateVacancyDto } from './dto/create-vacancy.dto';
 import { UpdateVacancyDto } from './dto/update-vacancy.dto';
 import { VacancyQueryDto } from './dto/vacancy-query.dto';
 
+import { Roles } from 'src/common/enum/roles.enum';
+import { BuyPremiumDto } from './dto/buy-premium.dto';
+
 @Injectable()
-export class VacancyService extends BaseService<
-  CreateVacancyDto,
-  UpdateVacancyDto,
-  Vacancy
-> {
+export class VacancyService {
   constructor(
-    @InjectRepository(Vacancy) private readonly vacancyRepo: any,
-    @InjectRepository(Company) private readonly companyRepo: any,
-  ) {
-    super(vacancyRepo);
-  }
-
-  async findOneVacancy(id: string): Promise<ISuccess> {
-    const vacancy = await this.vacancyRepo.findOne({
-      where: { id, isDeleted: false } as any,
-      relations: ['company'],
-    });
-
-    if (!vacancy) throw new NotFoundException('Vacancy not found');
-
-    if (!vacancy.isActive) throw new NotFoundException('Vacancy not found');
-
-    return successRes(vacancy);
-  }
-
-  async listPublic(query: VacancyQueryDto): Promise<IResponsePagination> {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 10;
-
-    const where: any = { isActive: true, isDeleted: false };
-    if (query.q) where.title = ILike(`%${query.q}%`);
-    if (query.city) where.city = ILike(`%${query.city}%`);
-    if (query.employmentType) where.employmentType = query.employmentType;
-
-    return RepositoryPager.findAll(this.vacancyRepo, {
-      where,
-      take: limit,
-      skip: page, // RepositoryPager.skip = page (1-based) deb ishlaydi
-      order: { createdAt: 'DESC' },
-    });
-  }
-
-  // EMPLOYER list (o‘zimniki)
-  async listEmployer(
-    currentUser: { id: string; role: Roles },
-    query: VacancyQueryDto,
-  ): Promise<IResponsePagination> {
-    if (currentUser.role !== Roles.EMPLOYER) throw new ForbiddenException();
-
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 10;
-
-    const where: any = {
-      isDeleted: false,
-      company: { owner: { id: currentUser.id } },
-    };
-
-    if (query.q) where.title = ILike(`%${query.q}%`);
-    if (query.city) where.city = ILike(`%${query.city}%`);
-    if (query.employmentType) where.employmentType = query.employmentType;
-
-    return RepositoryPager.findAll(this.vacancyRepo, {
-      where,
-      take: limit,
-      skip: page,
-      order: { createdAt: 'DESC' },
-    });
-  }
-
-  // EMPLOYER create
-  async createVacancy(
-    currentUser: { id: string; role: Roles },
-    dto: CreateVacancyDto,
-  ): Promise<ISuccess> {
-    if (currentUser.role !== Roles.EMPLOYER) {
-      throw new ForbiddenException('Only employer can create vacancy');
-    }
-
+    @InjectRepository(Vacancy) private readonly vacancyRepo: Repository<Vacancy>,
+    @InjectRepository(Company) private readonly companyRepo: Repository<Company>,
+  ) {}
+async create(currentUser: { id: string }, dto: CreateVacancyDto): Promise<ISuccess> {
     const company = await this.companyRepo.findOne({
-      where: { owner: { id: currentUser.id } },
+      where: { ownerId: currentUser.id, isDeleted: false } as any,
     });
-    if (!company) throw new NotFoundException('Company profile not found');
+    
+    if (!company) throw new BadRequestException('Avval kompaniya yarating');
 
     const vacancy = this.vacancyRepo.create({
-      company,
-      title: dto.title,
-      description: dto.description,
-      city: dto.city ?? null,
-      salaryFrom: dto.salaryFrom ?? null,
-      salaryTo: dto.salaryTo ?? null,
-      employmentType: dto.employmentType,
+      ...dto,
+      companyId: company.id, // IDni aniq beramiz
+      company: company,      // Obyektni ham bog'laymiz
+      status: VacancyStatus.DRAFT,
       isActive: true,
     });
 
@@ -122,52 +41,171 @@ export class VacancyService extends BaseService<
     return successRes(saved, 201);
   }
 
-  // OWNER/ADMIN update (status va fieldlar)
-  async updateVacancy(
-    currentUser: { id: string; role: Roles },
-    id: string,
-    dto: UpdateVacancyDto,
-  ): Promise<ISuccess> {
-    const vacancy = await this.vacancyRepo.findOne({ where: { id } });
+  async update(currentUser: { id: string; role: any }, vacancyId: string, dto: UpdateVacancyDto): Promise<ISuccess> {
+    const vacancy = await this.vacancyRepo.findOne({ where: { id: vacancyId } as any });
     if (!vacancy) throw new NotFoundException('Vacancy not found');
 
-    const isAdmin = [Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role);
-    const isOwner =
-      currentUser.role === Roles.EMPLOYER &&
-      vacancy.company?.owner?.id === currentUser.id;
+    const company = await this.companyRepo.findOne({ where: { id: vacancy.company } as any });
+    if (!company) throw new NotFoundException('Company not found');
 
-    if (!isAdmin && !isOwner) throw new ForbiddenException();
+    // faqat owner update qilsin (admin ham qilishi mumkin bo‘lsa keyin qo‘shamiz)
+    if (company.ownerId !== currentUser.id) throw new ForbiddenException('Not your vacancy');
 
-    await this.vacancyRepo.update(id, dto);
-    const updated = await this.vacancyRepo.findOne({ where: { id } });
+    // Published bo‘lsa edit qilganda qayta moderationga tushirsak HHga yaqin bo‘ladi
+    const shouldRemoderate = vacancy.status === VacancyStatus.PUBLISHED;
 
-    return successRes(updated);
-  }
+    Object.assign(vacancy, dto);
 
-  async toggleVacancyStatus(
-    currentUser: { id: string; role: Roles },
-    vacancyId: string,
-  ) {
-    if (![Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role)) {
-      throw new ForbiddenException();
-    }
-    return super.updateStatus(vacancyId);
-  }
-
-  async listAdmin(
-    currentUser: { id: string; role: Roles },
-    page = 1,
-    limit = 10,
-  ) {
-    if (![Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role)) {
-      throw new ForbiddenException();
+    if (shouldRemoderate) {
+      vacancy.status = VacancyStatus.PENDING;
+      vacancy.rejectedReason = null;
+      vacancy.publishedAt = null;
     }
 
-    return RepositoryPager.findAll(this.vacancyRepo, {
-      where: { isDeleted: false } as any,
-      skip: page,
-      take: limit,
-      order: { createdAt: 'DESC' as any },
+    const saved = await this.vacancyRepo.save(vacancy);
+    return successRes(saved);
+  }
+
+  async submitForModeration(currentUser: { id: string }, vacancyId: string): Promise<ISuccess> {
+    // 1. Vakansiyani kompaniyasi bilan birga yuklaymiz
+    const vacancy = await this.vacancyRepo.findOne({ 
+      where: { id: vacancyId } as any,
+      relations: ['company'] 
     });
+
+    if (!vacancy) throw new NotFoundException('Vakansiya topilmadi');
+    if (!vacancy.company) throw new BadRequestException('Vakansiyaga boglangan kompaniya topilmadi');
+
+    // 2. Egalik huquqini tekshiramiz
+    if (vacancy.company.ownerId !== currentUser.id) {
+      throw new ForbiddenException('Bu vakansiya sizga tegishli emas');
+    }
+
+    // 3. Kompaniya tasdiqlanganini tekshiramiz
+    if (vacancy.company.status !== CompanyStatus.APPROVED) {
+      throw new BadRequestException('Kompaniyangiz admin tomonidan tasdiqlanishi kerak');
+    }
+
+    // 4. Statusni tekshiramiz (Agar allaqachon PUBLISHED bo'lsa, xato bermasligi uchun)
+    if (vacancy.status === VacancyStatus.PUBLISHED) {
+      return successRes(vacancy, 200); // Allaqachon e'lon qilingan
+    }
+
+    vacancy.status = VacancyStatus.PENDING;
+    const saved = await this.vacancyRepo.save(vacancy);
+    return successRes(saved);
   }
+
+  async adminList(status?: VacancyStatus): Promise<ISuccess> {
+    const where: any = { isDeleted: false };
+    if (status) where.status = status;
+
+    const data = await this.vacancyRepo.find({
+      where,
+      relations: ['company'],
+      order: { createdAt: 'DESC' },
+    });
+    return successRes(data);
+  }
+
+  async adminApprove(vacancyId: string) {
+    const vacancy = await this.vacancyRepo.findOne({ where: { id: vacancyId, isDeleted: false } as any });
+    if (!vacancy) throw new NotFoundException('Vacancy not found');
+
+    if (vacancy.status !== VacancyStatus.PENDING) {
+      throw new BadRequestException('Only PENDING vacancies can be approved');
+    }
+
+    vacancy.status = VacancyStatus.PUBLISHED;
+    vacancy.publishedAt = new Date();
+    vacancy.rejectedReason = null;
+
+    return successRes(await this.vacancyRepo.save(vacancy));
+  }
+
+  async adminReject(vacancyId: string, reason: string) {
+    const vacancy = await this.vacancyRepo.findOne({ where: { id: vacancyId, isDeleted: false } as any });
+    if (!vacancy) throw new NotFoundException('Vacancy not found');
+
+    vacancy.status = VacancyStatus.REJECTED;
+    vacancy.rejectedReason = reason || 'Requirements not met';
+    vacancy.publishedAt = null;
+
+    return successRes(await this.vacancyRepo.save(vacancy));
+  }
+
+  // Public list uchun Premium mantiqi bilan QueryBuilder
+  async listPublic(query: VacancyQueryDto) {
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 10;
+
+    const qb = this.vacancyRepo.createQueryBuilder('v')
+      .leftJoinAndSelect('v.company', 'c')
+      .where('v.isDeleted = false')
+      .andWhere('v.isActive = true')
+      .andWhere('v.status = :status', { status: VacancyStatus.PUBLISHED });
+
+    if (query.q) qb.andWhere('v.title ILIKE :q', { q: `%${query.q}%` });
+    if (query.city) qb.andWhere('v.city ILIKE :city', { city: `%${query.city}%` });
+
+    qb.orderBy('v.isPremium', 'DESC') // Premiumlar tepada
+      .addOrderBy('v.publishedAt', 'DESC');
+
+    const [data, total] = await qb.take(limit).skip((page - 1) * limit).getManyAndCount();
+    return Pager.of(200, { uz: 'OK', en: 'OK', ru: 'OK' }, data, total, limit, page);
+  }
+
+
+  // Admin vakansiyani tasdiqlashi
+async adminSetPremium(vacancyId: string, days: number) {
+  const v = await this.vacancyRepo.findOne({ where: { id: vacancyId } as any });
+  if (!v) throw new NotFoundException('Vacancy not found');
+
+  // faqat published bo‘lganda premium mantiqli
+  if (v.status !== VacancyStatus.PUBLISHED) {
+    throw new BadRequestException('Only PUBLISHED vacancies can be premium');
+  }
+
+  const until = new Date();
+  until.setDate(until.getDate() + days);
+
+  v.isPremium = true;
+  v.premiumUntil = until;
+
+  const saved = await this.vacancyRepo.save(v);
+  return successRes(saved);
+}
+
+  
+async buyPremium(currentUser: { id: string; role: Roles }, vacancyId: string, dto: BuyPremiumDto) {
+  const vacancy = await this.vacancyRepo.findOne({
+    where: { id: vacancyId } as any,
+    relations: ['company', 'company.owner'], // sening relation namingga qarab moslaymiz
+  });
+
+  if (!vacancy) throw new NotFoundException('Vacancy not found');
+
+  // faqat egasi (EMPLOYER) yoki admin
+  const isAdmin = [Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role);
+  const isOwner = vacancy.company?.owner?.id === currentUser.id;
+
+  if (!isAdmin && !isOwner) throw new ForbiddenException('No access');
+
+  const now = new Date();
+  const base = vacancy.premiumUntil && vacancy.premiumUntil > now ? vacancy.premiumUntil : now;
+
+  const until = new Date(base);
+  until.setDate(until.getDate() + dto.days);
+
+  vacancy.isPremium = true;
+  vacancy.premiumUntil = until;
+
+  const saved = await this.vacancyRepo.save(vacancy);
+
+  return {
+    ...saved,
+    premiumUntil: saved.premiumUntil,
+  };
+}
+
 }

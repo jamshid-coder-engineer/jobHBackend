@@ -1,148 +1,77 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-
-import {
-  Application,
-  ApplicationStatus,
-} from 'src/core/entity/application.entity';
+import { Application } from 'src/core/entity/application.entity';
 import { Vacancy } from 'src/core/entity/vacancy.entity';
 import { User } from 'src/core/entity/user.entity';
-
 import { Roles } from 'src/common/enum/roles.enum';
-
-import { BaseService } from 'src/infrastructure/base/base.service';
 import { successRes } from 'src/infrastructure/response/success.response';
-import { RepositoryPager } from 'src/infrastructure/pagination/RepositoryPager';
-import {
-  ISuccess,
-  IResponsePagination,
-  IFindOptions,
-} from 'src/infrastructure/pagination/successResponse';
-
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
+import { ApplicationStatus } from 'src/common/enum/roles.enum';
 
 @Injectable()
-export class ApplicationService extends BaseService<
-  CreateApplicationDto,
-  UpdateApplicationStatusDto,
-  Application
-> {
+export class ApplicationService {
   constructor(
-    @InjectRepository(Application)
-    private readonly appRepo: Repository<Application>,
-    @InjectRepository(Vacancy)
-    private readonly vacancyRepo: Repository<Vacancy>,
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
-  ) {
-    super(appRepo);
-  }
+    @InjectRepository(Application) private readonly appRepo: Repository<Application>,
+    @InjectRepository(Vacancy) private readonly vacancyRepo: Repository<Vacancy>,
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+  ) {}
 
-  async apply(
-    currentUser: { id: string; role: Roles },
-    dto: CreateApplicationDto,
-  ): Promise<ISuccess> {
-    if (currentUser.role !== Roles.CANDIDATE) {
-      throw new ForbiddenException('Only candidate can apply');
-    }
+  async apply(currentUser: { id: string; role: Roles }, dto: CreateApplicationDto) {
+    if (currentUser.role !== Roles.CANDIDATE) throw new ForbiddenException('Only candidates can apply');
 
-    const user = await this.userRepo.findOne({
-      where: { id: currentUser.id, isDeleted: false } as any,
-    });
-    if (!user) throw new NotFoundException('User not found');
-
-    const vacancy = await this.vacancyRepo.findOne({
-      where: { id: dto.vacancyId } as any,
-    });
-    if (!vacancy) throw new NotFoundException('Vacancy not found');
-    if (!vacancy.isActive)
-      throw new ForbiddenException('Vacancy is not active');
+    const vacancy = await this.vacancyRepo.findOne({ where: { id: dto.vacancyId, isDeleted: false, isActive: true } as any });
+    if (!vacancy) throw new NotFoundException('Active vacancy not found');
 
     const exists = await this.appRepo.findOne({
-      where: {
-        isDeleted: false,
-        vacancy: { id: vacancy.id },
-        applicant: { id: user.id },
-      } as any,
+      where: { vacancy: { id: vacancy.id }, applicant: { id: currentUser.id }, isDeleted: false } as any,
     });
-    if (exists)
-      throw new ConflictException('You already applied to this vacancy');
+    if (exists) throw new ConflictException('You already applied to this vacancy');
 
     const application = this.appRepo.create({
       vacancy,
-      applicant: user,
+      applicant: { id: currentUser.id } as any,
       coverLetter: dto.coverLetter ?? null,
       status: ApplicationStatus.NEW,
-      isActive: true,
     });
 
     const saved = await this.appRepo.save(application);
     return successRes(saved, 201);
   }
 
-  async myApplications(
-    currentUser: { id: string; role: Roles },
-    options?: IFindOptions<Application>,
-  ): Promise<IResponsePagination> {
-    if (currentUser.role !== Roles.CANDIDATE) throw new ForbiddenException();
-
-    return RepositoryPager.findAll(this.appRepo, {
-      ...(options || {}),
+  async myApplications(currentUser: { id: string }) {
+    const data = await this.appRepo.find({
+      where: { applicant: { id: currentUser.id }, isDeleted: false } as any,
       relations: ['vacancy', 'vacancy.company'],
-      where: {
-        isDeleted: false,
-        applicant: { id: currentUser.id },
-        ...(options?.where || {}),
-      } as any,
-      order: options?.order || ({ createdAt: 'DESC' } as any),
+      order: { createdAt: 'DESC' },
     });
+    return successRes(data);
   }
 
-  async employerApplications(
-    currentUser: { id: string; role: Roles },
-    options?: IFindOptions<Application>,
-  ): Promise<IResponsePagination> {
-    if (currentUser.role !== Roles.EMPLOYER) throw new ForbiddenException();
-
-    return RepositoryPager.findAll(this.appRepo, {
-      ...(options || {}),
-      relations: ['vacancy', 'vacancy.company', 'applicant'],
-      where: {
-        isDeleted: false,
-        applicant: { id: currentUser.id },
-        ...(options?.where || {}),
-      } as any,
-      order: options?.order || ({ createdAt: 'DESC' } as any),
+  async employerApplications(currentUser: { id: string }) {
+    const data = await this.appRepo.find({
+      where: { vacancy: { company: { ownerId: currentUser.id } }, isDeleted: false } as any,
+      relations: ['vacancy', 'applicant', 'applicant.resume'],
+      order: { createdAt: 'DESC' },
     });
+    return successRes(data);
   }
 
-  async updateApplicationStatus(
-    currentUser: { id: string; role: Roles },
-    applicationId: string,
-    dto: UpdateApplicationStatusDto,
-  ): Promise<ISuccess> {
+  async updateApplicationStatus(currentUser: { id: string; role: Roles }, applicationId: string, dto: UpdateApplicationStatusDto) {
     const application = await this.appRepo.findOne({
       where: { id: applicationId, isDeleted: false } as any,
+      relations: ['vacancy', 'vacancy.company'],
     });
     if (!application) throw new NotFoundException('Application not found');
 
+    const isOwner = application.vacancy?.company?.ownerId === currentUser.id;
     const isAdmin = [Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role);
-    const isOwner =
-      currentUser.role === Roles.EMPLOYER &&
-      application.vacancy?.company?.owner?.id === currentUser.id;
 
-    if (!isAdmin && !isOwner) throw new ForbiddenException();
+    if (!isOwner && !isAdmin) throw new ForbiddenException('No access to this application');
 
     application.status = dto.status;
     const saved = await this.appRepo.save(application);
-
     return successRes(saved);
   }
 }

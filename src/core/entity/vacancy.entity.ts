@@ -1,19 +1,20 @@
-import { Column, Entity as OrmEntity, ManyToOne } from 'typeorm';
+import { Column, Entity as OrmEntity, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { Company } from './company.entity';
-
-export enum EmploymentType {
-  FULL_TIME = 'FULL_TIME',
-  PART_TIME = 'PART_TIME',
-  CONTRACT = 'CONTRACT',
-  INTERN = 'INTERN',
-  REMOTE = 'REMOTE',
-}
+import { Application } from './application.entity';
+import { EmploymentType, VacancyStatus } from 'src/common/enum/roles.enum';
 
 @OrmEntity('vacancies')
 export class Vacancy extends BaseEntity {
-  @ManyToOne(() => Company, { eager: true })
+  @ManyToOne(() => Company, (company) => company.vacancies, { 
+    eager: true, 
+    onDelete: 'CASCADE' 
+  })
+  @JoinColumn({ name: 'companyId' }) // Bazada companyId ustunini yaratadi
   company: Company;
+
+  @Column({ type: 'uuid' }) // UUID ishlatayotgan bo'lsangiz uuid, aks holda varchar
+  companyId: string;
 
   @Column({ type: 'varchar' })
   title: string;
@@ -39,4 +40,22 @@ export class Vacancy extends BaseEntity {
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
+
+  @Column({ type: 'enum', enum: VacancyStatus, default: VacancyStatus.DRAFT })
+  status: VacancyStatus;
+
+  @Column({ type: 'timestamp', nullable: true })
+  publishedAt?: Date | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  rejectedReason?: string | null;
+
+  @Column({ type: 'boolean', default: false })
+  isPremium: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  premiumUntil?: Date | null;
+
+  @OneToMany(() => Application, (application) => application.vacancy)
+  applications: Application[];
 }

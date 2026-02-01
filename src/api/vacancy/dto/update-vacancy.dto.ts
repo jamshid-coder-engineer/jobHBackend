@@ -7,7 +7,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
-import { EmploymentType } from 'src/core/entity/vacancy.entity';
+import { EmploymentType } from 'src/common/enum/roles.enum';
 
 export class UpdateVacancyDto {
   @ApiPropertyOptional({ example: 'Senior Frontend Developer', maxLength: 160 })

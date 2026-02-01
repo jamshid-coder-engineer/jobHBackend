@@ -1,28 +1,15 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
-
-import { ApplicationService } from './application.service';
-import { CreateApplicationDto } from './dto/create-application.dto';
-import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
-import { ApplicationQueryDto } from './dto/application-query.dto';
-
+import { Body, Controller, Get, Patch, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthGuard } from 'src/common/guard/authGuard';
 import { RolesGuard } from 'src/common/guard/roleGuard';
 import { accessRoles } from 'src/common/decorator/roles.decorator';
-import { CurrentUser } from 'src/common/decorator/currentUser.decorator';
 import { Roles } from 'src/common/enum/roles.enum';
-import { Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApplicationService } from './application.service';
+import { CreateApplicationDto } from './dto/create-application.dto';
+import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
+import { CurrentUser } from 'src/common/decorator/currentUser.decorator'; // Agar mavjud bo'lsa
 
-@ApiTags('applications')
+@ApiTags('Application')
 @ApiBearerAuth('bearer')
 @Controller('applications')
 @UseGuards(AuthGuard, RolesGuard)
@@ -31,41 +18,31 @@ export class ApplicationController {
 
   @Post()
   @accessRoles(Roles.CANDIDATE)
-  apply(@CurrentUser() user: any, @Body() dto: CreateApplicationDto) {
+  @ApiOperation({ summary: 'Vakansiyaga ariza topshirish (Faqat Candidate)' })
+  apply(@CurrentUser() user, @Body() dto: CreateApplicationDto) {
     return this.applicationService.apply(user, dto);
   }
 
-  @Get('me')
+  @Get('my')
   @accessRoles(Roles.CANDIDATE)
-  my(
-    @CurrentUser() user: any,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.applicationService.myApplications(user, {
-      skip: Number(page || 1),
-      take: Number(limit || 10),
-    });
+  @ApiOperation({ summary: 'Topshirgan arizalarim ro‘yxati' })
+  getMyApplications(@CurrentUser() user) {
+    return this.applicationService.myApplications(user);
   }
 
   @Get('employer')
   @accessRoles(Roles.EMPLOYER)
-  employer(
-    @CurrentUser() user: any,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.applicationService.employerApplications(user, {
-      skip: Number(page || 1),
-      take: Number(limit || 10),
-    });
+  @ApiOperation({ summary: 'Kompaniyamga kelgan arizalar' })
+  getEmployerApplications(@CurrentUser() user) {
+    return this.applicationService.employerApplications(user);
   }
 
   @Patch(':id/status')
   @accessRoles(Roles.EMPLOYER, Roles.ADMIN, Roles.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Ariza statusini ozgartirish (Review, Accept, Reject)' })
   updateStatus(
-    @CurrentUser() user: any,
-    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user,
+    @Param('id') id: string,
     @Body() dto: UpdateApplicationStatusDto,
   ) {
     return this.applicationService.updateApplicationStatus(user, id, dto);

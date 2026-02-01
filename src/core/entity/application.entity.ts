@@ -1,22 +1,24 @@
-import { Column, Entity as OrmEntity, ManyToOne } from 'typeorm';
+import { Column, Entity as OrmEntity, ManyToOne, Unique } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { Vacancy } from './vacancy.entity';
 import { User } from './user.entity';
-
-export enum ApplicationStatus {
-  NEW = 'NEW',
-  REVIEWED = 'REVIEWED',
-  ACCEPTED = 'ACCEPTED',
-  REJECTED = 'REJECTED',
-}
+import { Resume } from './resume.entity';
+import { ApplicationStatus } from 'src/common/enum/roles.enum';
 
 @OrmEntity('applications')
+@Unique(['vacancy', 'applicant']) // User bitta vakansiyaga faqat 1 marta apply qila oladi
 export class Application extends BaseEntity {
-  @ManyToOne(() => Vacancy, { eager: true })
+  @ManyToOne(() => Vacancy, (vacancy) => vacancy.applications, { 
+    eager: true, 
+    onDelete: 'CASCADE' 
+  })
   vacancy: Vacancy;
 
-  @ManyToOne(() => User, { eager: true })
+  @ManyToOne(() => User, (user) => user.applications, { eager: true })
   applicant: User;
+
+  @ManyToOne(() => Resume, { nullable: true })
+  resume: Resume;
 
   @Column({ type: 'text', nullable: true })
   coverLetter: string | null;

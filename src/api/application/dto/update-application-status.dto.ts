@@ -1,5 +1,5 @@
 import { IsEnum } from 'class-validator';
-import { ApplicationStatus } from 'src/core/entity/application.entity';
+import { ApplicationStatus } from 'src/common/enum/roles.enum';
 
 export class UpdateApplicationStatusDto {
   @IsEnum(ApplicationStatus)

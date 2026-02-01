@@ -1,156 +1,75 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
-
 import { Resume } from 'src/core/entity/resume.entity';
 import { User } from 'src/core/entity/user.entity';
 import { Roles } from 'src/common/enum/roles.enum';
-
-import { BaseService } from 'src/infrastructure/base/base.service';
 import { successRes } from 'src/infrastructure/response/success.response';
 import { RepositoryPager } from 'src/infrastructure/pagination/RepositoryPager';
-import {
-  IFindOptions,
-  IResponsePagination,
-  ISuccess,
-} from 'src/infrastructure/pagination/successResponse';
-
 import { CreateResumeDto } from './dto/create-resume.dto';
 import { UpdateResumeDto } from './dto/update-resume.dto';
 import { removeUploadFileSafe } from '../../infrastructure/fileServise/file-remove';
 import { config } from 'src/config';
 
 @Injectable()
-export class ResumeService extends BaseService<
-  CreateResumeDto,
-  UpdateResumeDto,
-  Resume
-> {
+export class ResumeService {
   constructor(
-    @InjectRepository(Resume)
-    private readonly resumeRepo: Repository<Resume>,
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
-  ) {
-    super(resumeRepo);
-  }
+    @InjectRepository(Resume) private readonly resumeRepo: Repository<Resume>,
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+  ) {}
 
-  async createResume(
-    currentUser: { id: string; role: Roles },
-    dto: CreateResumeDto,
-  ): Promise<ISuccess> {
-    if (currentUser.role !== Roles.CANDIDATE) {
-      throw new ForbiddenException('Only candidate can create resume');
-    }
+  async createResume(currentUser: { id: string; role: Roles }, dto: CreateResumeDto) {
+    if (currentUser.role !== Roles.CANDIDATE) throw new ForbiddenException('Only candidates can create a resume');
 
-    const owner = await this.userRepo.findOne({
-      where: { id: currentUser.id, isDeleted: false } as any,
-    });
-    if (!owner) throw new NotFoundException('User not found');
-
-    const exists = await this.resumeRepo.findOne({
-      where: { owner: { id: owner.id }, isDeleted: false } as any,
-    });
-    if (exists)
-      throw new ConflictException('Resume already exists for this user');
+    const exists = await this.resumeRepo.findOne({ where: { owner: { id: currentUser.id }, isDeleted: false } as any });
+    if (exists) throw new ConflictException('Resume already exists');
 
     const resume = this.resumeRepo.create({
-      owner,
       ...dto,
+      owner: { id: currentUser.id } as any,
       isActive: true,
-    } as any);
-
-    const saved = await this.resumeRepo.save(resume);
-    return successRes(saved, 201);
-  }
-
-  async myResume(currentUser: { id: string; role: Roles }): Promise<ISuccess> {
-    if (currentUser.role !== Roles.CANDIDATE) throw new ForbiddenException();
-
-    const resume = await this.resumeRepo.findOne({
-      where: { owner: { id: currentUser.id }, isDeleted: false } as any,
     });
 
+    return successRes(await this.resumeRepo.save(resume), 201);
+  }
+
+  async myResume(currentUser: { id: string }) {
+    const resume = await this.resumeRepo.findOne({ where: { owner: { id: currentUser.id }, isDeleted: false } as any });
     if (!resume) throw new NotFoundException('Resume not found');
     return successRes(resume);
   }
 
-  async updateMyResume(
-    currentUser: { id: string; role: Roles },
-    dto: UpdateResumeDto,
-  ): Promise<ISuccess> {
-    if (currentUser.role !== Roles.CANDIDATE) throw new ForbiddenException();
-
-    const resume = await this.resumeRepo.findOne({
-      where: { owner: { id: currentUser.id }, isDeleted: false } as any,
-    });
+  async updateMyResume(currentUser: { id: string }, dto: UpdateResumeDto) {
+    const resume = await this.resumeRepo.findOne({ where: { owner: { id: currentUser.id }, isDeleted: false } as any });
     if (!resume) throw new NotFoundException('Resume not found');
 
-    await this.resumeRepo.update(resume.id as any, dto as any);
-
-    const updated = await this.resumeRepo.findOne({
-      where: { id: resume.id } as any,
-    });
-
-    return successRes(updated);
+    Object.assign(resume, dto);
+    return successRes(await this.resumeRepo.save(resume));
   }
 
-  async updateMyCv(currentUser: { id: string; role: Roles }, filename: string) {
-    if (currentUser.role !== Roles.CANDIDATE) throw new ForbiddenException();
-
-    const resume = await this.resumeRepo.findOne({
-      where: { owner: { id: currentUser.id }, isDeleted: false } as any,
-    });
+  async updateMyCv(currentUser: { id: string }, filename: string) {
+    const resume = await this.resumeRepo.findOne({ where: { owner: { id: currentUser.id }, isDeleted: false } as any });
     if (!resume) throw new NotFoundException('Resume not found');
 
-    await removeUploadFileSafe(resume.cvFile);
+    // Eski faylni o'chirish
+    if (resume.cvFile) {
+      await removeUploadFileSafe(resume.cvFile);
+    }
 
+    // Yangi fayl yo'lini saqlash (faqat nisbiy yo'l)
     resume.cvFile = `${config.UPLOAD.FOLDER}/cv/${filename}`;
-    const saved = await this.resumeRepo.save(resume);
-
-    return successRes(saved);
+    return successRes(await this.resumeRepo.save(resume));
   }
 
-  async listAll(
-    currentUser: { id: string; role: Roles },
-    options?: IFindOptions<Resume>,
-  ): Promise<IResponsePagination> {
-    if (![Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role)) {
-      throw new ForbiddenException();
-    }
-
-    return RepositoryPager.findAll(this.resumeRepo, {
-      ...(options || {}),
-      where: {
-        isDeleted: false,
-        ...(options?.where || {}),
-      } as any,
-      order: options?.order || ({ createdAt: 'DESC' } as any),
-    });
-  }
-
-  async searchPublic(
-    q?: string,
-    city?: string,
-    page = 1,
-    limit = 10,
-  ): Promise<IResponsePagination> {
+  async searchPublic(q?: string, city?: string, page = 1, limit = 10) {
     const where: any = { isDeleted: false, isActive: true };
-
-    if (q) {
-      where.title = ILike(`%${q}%`);
-    }
+    if (q) where.title = ILike(`%${q}%`);
     if (city) where.city = ILike(`%${city}%`);
 
     return RepositoryPager.findAll(this.resumeRepo, {
       where,
-      skip: page,
       take: limit,
+      skip: (page - 1) * limit,
       order: { createdAt: 'DESC' },
     });
   }

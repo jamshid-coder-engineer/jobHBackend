@@ -1,184 +1,118 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
+import { successRes } from 'src/infrastructure/response/success.response';
+import type { ISuccess } from 'src/infrastructure/pagination/successResponse';
 
 import { Company } from 'src/core/entity/company.entity';
-import { User } from 'src/core/entity/user.entity';
-
-import { Roles } from 'src/common/enum/roles.enum';
-
-import { BaseService } from 'src/infrastructure/base/base.service';
-import { successRes } from 'src/infrastructure/response/success.response';
-import { RepositoryPager } from 'src/infrastructure/pagination/RepositoryPager';
-import {
-  IFindOptions,
-  IResponsePagination,
-  ISuccess,
-} from 'src/infrastructure/pagination/successResponse';
-
 import { CreateCompanyDto } from './dto/com.create.dto';
 import { UpdateCompanyDto } from './dto/com.update.dto';
-
-import { removeUploadFileSafe } from '../../infrastructure/fileServise/file-remove';
-import { config } from 'src/config';
+import { CompanyStatus } from 'src/common/enum/roles.enum';
 
 @Injectable()
-export class CompanyService extends BaseService<
-  CreateCompanyDto,
-  UpdateCompanyDto,
-  Company
-> {
+export class CompanyService {
   constructor(
-    @InjectRepository(Company)
-    private readonly companyRepo: Repository<Company>,
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
-  ) {
-    super(companyRepo);
-  }
+    @InjectRepository(Company) private readonly companyRepo: Repository<Company>,
+  ) {}
 
-  async createCompany(
-    currentUser: { id: string; role: Roles },
-    dto: CreateCompanyDto,
-  ): Promise<ISuccess> {
-    if (currentUser.role !== Roles.EMPLOYER) {
-      throw new ForbiddenException('Only employer can create company');
-    }
-
-    const owner = await this.userRepo.findOne({
-      where: { id: currentUser.id, isDeleted: false } as any,
-    });
-    if (!owner) throw new NotFoundException('User not found');
-
-    const exists = await this.companyRepo.findOne({
-      where: { owner: { id: owner.id }, isDeleted: false } as any,
-    });
-    if (exists)
-      throw new ConflictException('Company already exists for this user');
+  async createMyCompany(currentUser: { id: string; role: any }, dto: CreateCompanyDto): Promise<ISuccess> {
+    // 1 user = 1 company (xohlasang)
+    const exists = await this.companyRepo.findOne({ where: { ownerId: currentUser.id } as any });
+    if (exists) return successRes(exists);
 
     const company = this.companyRepo.create({
       ...dto,
-      owner,
-      isActive: true,
-    } as any);
+      ownerId: currentUser.id,
+      status: CompanyStatus.PENDING,
+      isVerified: false,
+    });
 
     const saved = await this.companyRepo.save(company);
     return successRes(saved, 201);
   }
 
-  async myCompany(currentUser: { id: string; role: Roles }): Promise<ISuccess> {
-    if (currentUser.role !== Roles.EMPLOYER) throw new ForbiddenException();
-
-    const company = await this.companyRepo.findOne({
-      where: { owner: { id: currentUser.id }, isDeleted: false } as any,
-    });
-
+  async getMyCompany(currentUser: { id: string }): Promise<ISuccess> {
+    const company = await this.companyRepo.findOne({ where: { ownerId: currentUser.id } as any });
     if (!company) throw new NotFoundException('Company not found');
     return successRes(company);
   }
 
-  async updateMyCompany(
-    currentUser: { id: string; role: Roles },
-    dto: UpdateCompanyDto,
-  ): Promise<ISuccess> {
-    if (currentUser.role !== Roles.EMPLOYER) throw new ForbiddenException();
-
-    const company = await this.companyRepo.findOne({
-      where: { owner: { id: currentUser.id }, isDeleted: false } as any,
-    });
+  async updateMyCompany(currentUser: { id: string }, dto: UpdateCompanyDto): Promise<ISuccess> {
+    const company = await this.companyRepo.findOne({ where: { ownerId: currentUser.id } as any });
     if (!company) throw new NotFoundException('Company not found');
 
-    await this.companyRepo.update(company.id as any, dto as any);
+    // agar qayta edit qilsa, status qayta PENDING bo‘lishi (moderation) — ixtiyoriy
+    // HHga yaqin qilish uchun: profil o‘zgarsa qayta moderatsiya:
+    company.status = CompanyStatus.PENDING;
+    company.rejectedReason = null;
+    company.approvedAt = null;
 
-    const updated = await this.companyRepo.findOne({
-      where: { id: company.id } as any,
-    });
-
-    return successRes(updated);
-  }
-
-  async updateMyLogo(
-    currentUser: { id: string; role: Roles },
-    filename: string,
-  ) {
-    if (currentUser.role !== Roles.EMPLOYER) throw new ForbiddenException();
-
-    const company = await this.companyRepo.findOne({
-      where: { owner: { id: currentUser.id }, isDeleted: false } as any,
-    });
-    if (!company) throw new NotFoundException('Company not found');
-
-    await removeUploadFileSafe(company.logo);
-
-    company.logo = `${config.UPLOAD.FOLDER}/${filename}`;
+    Object.assign(company, dto);
     const saved = await this.companyRepo.save(company);
-
     return successRes(saved);
   }
 
-  // PUBLIC -> company list (pagination) (frontend uchun foydali)
-  async listPublic(
-    options?: IFindOptions<Company>,
-  ): Promise<IResponsePagination> {
-    return RepositoryPager.findAll(this.companyRepo, {
-      ...(options || {}),
-      where: {
-        isDeleted: false,
-        isActive: true,
-        ...(options?.where || {}),
-      } as any,
-      order: options?.order || ({ createdAt: 'DESC' } as any),
-    });
+  async updateMyLogo(currentUser: { id: string }, filename: string): Promise<ISuccess> {
+    const company = await this.companyRepo.findOne({ where: { ownerId: currentUser.id } as any });
+    if (!company) throw new NotFoundException('Company not found');
+
+    company.logo = `${filename}`; // yoki `${config.UPLOAD.FOLDER}/${filename}`
+    // logo o‘zgarsa ham qayta moderatsiya qilish mumkin
+    company.status = CompanyStatus.PENDING;
+    company.rejectedReason = null;
+    company.approvedAt = null;
+
+    const saved = await this.companyRepo.save(company);
+    return successRes(saved);
   }
 
-  // PUBLIC -> company search (name/city) (ixtiyoriy helper)
-  async searchPublic(
-    q?: string,
-    city?: string,
-    page = 1,
-    limit = 10,
-  ): Promise<IResponsePagination> {
-    const where: any = { isDeleted: false, isActive: true };
-    if (q) where.name = ILike(`%${q}%`);
-    if (city) where.city = ILike(`%${city}%`);
+  // ✅ Admin uchun list
+  async adminList(status?: CompanyStatus): Promise<ISuccess> {
+    const where: any = {};
+    if (status) where.status = status;
 
-    return RepositoryPager.findAll(this.companyRepo, {
+    const data = await this.companyRepo.find({
       where,
-      skip: page,
-      take: limit,
-      order: { createdAt: 'DESC' },
-    });
-  }
-
-  async toggleCompanyStatus(
-    currentUser: { id: string; role: Roles },
-    companyId: string,
-  ) {
-    if (![Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role)) {
-      throw new ForbiddenException();
-    }
-    return super.updateStatus(companyId);
-  }
-
-  async listAdmin(
-    currentUser: { id: string; role: Roles },
-    page = 1,
-    limit = 10,
-  ) {
-    if (![Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role)) {
-      throw new ForbiddenException();
-    }
-
-    return RepositoryPager.findAll(this.companyRepo, {
-      where: { isDeleted: false } as any,
-      skip: page,
-      take: limit,
       order: { createdAt: 'DESC' as any },
     });
+
+    return successRes(data);
+  }
+
+  // ✅ Admin approve/reject
+  async adminApprove(companyId: string): Promise<ISuccess> {
+    const company = await this.companyRepo.findOne({ where: { id: companyId } as any });
+    if (!company) throw new NotFoundException('Company not found');
+
+    company.status = CompanyStatus.APPROVED;
+    company.approvedAt = new Date();
+    company.rejectedReason = null;
+
+    const saved = await this.companyRepo.save(company);
+    return successRes(saved);
+  }
+
+  async adminReject(companyId: string, reason?: string): Promise<ISuccess> {
+    const company = await this.companyRepo.findOne({ where: { id: companyId } as any });
+    if (!company) throw new NotFoundException('Company not found');
+
+    company.status = CompanyStatus.REJECTED;
+    company.rejectedReason = reason ?? 'Rejected by admin';
+    company.approvedAt = null;
+
+    const saved = await this.companyRepo.save(company);
+    return successRes(saved);
+  }
+
+  // ✅ Verification toggle
+  async adminVerify(companyId: string, value: boolean): Promise<ISuccess> {
+    const company = await this.companyRepo.findOne({ where: { id: companyId } as any });
+    if (!company) throw new NotFoundException('Company not found');
+
+    company.isVerified = value;
+    company.verifiedAt = value ? new Date() : null;
+
+    const saved = await this.companyRepo.save(company);
+    return successRes(saved);
   }
 }

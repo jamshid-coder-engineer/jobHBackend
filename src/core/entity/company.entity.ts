@@ -1,14 +1,12 @@
-import { Column, Entity as OrmEntity, JoinColumn, OneToOne } from 'typeorm';
+import { Column, Entity as OrmEntity, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { User } from './user.entity';
+import { Vacancy } from './vacancy.entity';
+import { CompanyStatus } from 'src/common/enum/roles.enum';
 
 @OrmEntity('companies')
 export class Company extends BaseEntity {
-  @OneToOne(() => User, { eager: true })
-  @JoinColumn()
-  owner: User;
-
-  @Column({ type: 'varchar' })
+  @Column({ type: 'varchar', length: 120, unique: true })
   name: string;
 
   @Column({ type: 'text', nullable: true })
@@ -23,6 +21,28 @@ export class Company extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   logo?: string | null;
 
-  @Column({ type: 'boolean', default: true })
-  isActive: boolean;
+  @Column({ type: 'enum', enum: CompanyStatus, default: CompanyStatus.PENDING })
+  status: CompanyStatus;
+
+  @Column({ type: 'timestamp', nullable: true })
+  approvedAt?: Date | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  rejectedReason?: string | null;
+
+  @Column({ type: 'boolean', default: false })
+  isVerified: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  verifiedAt?: Date | null;
+
+  @ManyToOne(() => User, (user) => user.company, { eager: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'ownerId' }) // Bu ownerId ustunini User ID bilan bog'laydi
+  owner: User;
+
+  @Column({ type: 'varchar' })
+  ownerId: string;
+
+  @OneToMany(() => Vacancy, (vacancy) => vacancy.company)
+  vacancies: Vacancy[];
 }

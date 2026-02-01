@@ -4,40 +4,40 @@ import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { config } from 'src/config';
 
-export const UPLOAD_DESTINATION = join(
+// Rasmlar uchun alohida papka
+export const IMG_DESTINATION = join(
   process.cwd(),
   config.UPLOAD.FOLDER || 'uploads',
+  'images',
 );
 
-export const createDestination = () => {
-  if (!existsSync(UPLOAD_DESTINATION)) {
-    mkdirSync(UPLOAD_DESTINATION, { recursive: true });
+const ensureImgDir = () => {
+  if (!existsSync(IMG_DESTINATION)) {
+    mkdirSync(IMG_DESTINATION, { recursive: true });
   }
 };
 
 export const multerOptions = {
   storage: diskStorage({
     destination: (req, file, cb) => {
-      createDestination();
-      cb(null, UPLOAD_DESTINATION);
+      ensureImgDir(); // Faqat kerak bo'lganda papkani tekshiradi
+      cb(null, IMG_DESTINATION);
     },
     filename: (req, file, cb) => {
-      const randomName = Array(32)
-        .fill(null)
-        .map(() => Math.floor(Math.random() * 16).toString(16))
-        .join('');
-
-      cb(null, `${randomName}${extname(file.originalname)}`);
+      // Fayl nomini yanada xavfsizroq va noyob qilish (timestamp + random)
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      cb(null, `img-${uniqueSuffix}${extname(file.originalname)}`);
     },
   }),
 
   fileFilter: (req: any, file: any, cb: any) => {
-    if (file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
+    // Faqat rasm formatlarini qabul qilish
+    if (file.mimetype.match(/\/(jpg|jpeg|png|webp|svg\+xml)$/)) {
       cb(null, true);
     } else {
       cb(
         new HttpException(
-          `Unsupported file type ${extname(file.originalname)}`,
+          `Unsupported file type ${extname(file.originalname)}. Use JPG, PNG, WEBP or SVG.`,
           HttpStatus.BAD_REQUEST,
         ),
         false,
@@ -46,6 +46,6 @@ export const multerOptions = {
   },
 
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 5 * 1024 * 1024, // 5MB limit - rasmlar uchun yetarli
   },
 };

@@ -8,7 +8,7 @@ import { CompanyController } from './company.controller';
 import { CompanyService } from './company.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Company, User])],
+  imports: [TypeOrmModule.forFeature([Company])],
   controllers: [CompanyController],
   providers: [CompanyService],
   exports: [CompanyService],

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
-import { EmploymentType } from 'src/core/entity/vacancy.entity';
+import { EmploymentType } from 'src/common/enum/roles.enum';
 
 export class CreateVacancyDto {
   @ApiProperty({ example: 'Frontend Developer', maxLength: 160 })
