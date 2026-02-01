@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { CacheModule } from '@nestjs/cache-manager'; // Qo'shildi
+import * as redisStore from 'cache-manager-redis-yet'; // Qo'shildi
 
 import { config } from './config';
 import { AuthModule } from './api/auth/auth.module';
@@ -12,10 +14,22 @@ import { ResumeModule } from './api/resume/resume.module';
 import { ApplicationModule } from './api/application/application.module';
 import { TokenModule } from './infrastructure';
 import { AdminModule } from './api/admin/admin.module';
+import { SocketModule } from './api/socket/socket.module'; // Qo'shildi
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+
+    // 1. Redis Cache Sozlamalari
+    CacheModule.registerAsync({
+  isGlobal: true,
+  useFactory: async () => ({
+    store: await redisStore.redisStore({
+      url: config.REDIS.URL, // Yangi config ishlatilmoqda
+      ttl: 60000,
+    }),
+  }),
+}),
 
     TypeOrmModule.forRootAsync({
       useFactory: async () => {
@@ -49,6 +63,8 @@ import { AdminModule } from './api/admin/admin.module';
     }),
 
     JwtModule.register({ global: true }),
+    
+    // API Modullari
     AuthModule,
     CompanyModule,
     VacancyModule,
@@ -56,6 +72,9 @@ import { AdminModule } from './api/admin/admin.module';
     ApplicationModule,
     TokenModule,
     AdminModule,
+    
+    // 2. Real-time xabarlar moduli
+    SocketModule, 
   ],
 })
 export class AppModule {}

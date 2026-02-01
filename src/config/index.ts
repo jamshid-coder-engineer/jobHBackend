@@ -24,6 +24,13 @@ export type NodeEnv = 'development' | 'production' | 'test';
 export interface AppConfig {
   APP: { PORT: number; NODE_ENV: NodeEnv; API_PREFIX: string };
   DB: { URL: string };
+  // Redis qismi qo'shildi
+  REDIS: {
+    HOST: string;
+    PORT: number;
+    PASS: string;
+    URL: string;
+  };
   JWT: {
     ACCESS_SECRET: string;
     ACCESS_EXPIRES_IN: number;
@@ -48,6 +55,14 @@ export const config: AppConfig = {
     API_PREFIX: process.env.API_PREFIX || '/api/v1',
   },
   DB: { URL: mustGet('DB_URL') },
+  // Redis konfiguratsiyasi
+  REDIS: {
+    HOST: mustGet('REDIS_HOST'),
+    PORT: mustNumber('REDIS_PORT'),
+    PASS: mustGet('REDIS_PASSWORD'),
+    // Redis URL format: redis://:password@host:port
+    URL: `redis://:${process.env.REDIS_PASSWORD}@${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`
+  },
   JWT: {
     ACCESS_SECRET: mustGet('JWT_ACCESS_SECRET'),
     ACCESS_EXPIRES_IN: mustNumber('JWT_ACCESS_EXPIRES_IN'),
