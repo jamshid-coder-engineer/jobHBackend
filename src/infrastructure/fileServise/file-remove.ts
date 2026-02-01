@@ -9,14 +9,12 @@ export async function removeUploadFileSafe(relativePath?: string | null) {
   if (!relativePath) return;
 
   try {
-    // Agar yo'l allaqachon absolyut bo'lsa yoki uploads bilan boshlansa
-    const fullPath = isAbsolute(relativePath) 
-      ? relativePath 
+    const fullPath = isAbsolute(relativePath)
+      ? relativePath
       : join(process.cwd(), relativePath);
 
     const normalizedPath = normalize(fullPath);
 
-    // Xavfsizlik: faqat uploads papkasi ichidagi fayllarni o'chirishga ruxsat
     if (!normalizedPath.startsWith(UPLOAD_ROOT)) {
       console.warn('Security alert: Attempt to delete file outside upload directory');
       return;

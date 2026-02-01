@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
+import { MailerModule } from '@nestjs-modules/mailer';
 
 import { config } from './config';
 import { AuthModule } from './api/auth/auth.module';
@@ -19,20 +20,31 @@ import { AdminModule } from './api/admin/admin.module';
     TypeOrmModule.forRootAsync({
       useFactory: async () => {
         console.log('⏳ Connecting to PostgreSQL...');
-
         return {
           type: 'postgres' as const,
           url: config.DB.URL,
           synchronize: true,
           autoLoadEntities: true,
-
           entities: ['dist/core/entity/*.entity{.ts,.js}'],
-
-          ssl:
-            config.APP.NODE_ENV === 'production'
+          ssl: config.APP.NODE_ENV === 'production'
               ? { rejectUnauthorized: false }
               : false,
         };
+      },
+    }),
+
+    MailerModule.forRoot({
+      transport: {
+        host: config.MAIL.HOST,
+        port: config.MAIL.PORT,
+        secure: true,
+        auth: {
+          user: config.MAIL.USER,
+          pass: config.MAIL.PASS,
+        },
+      },
+      defaults: {
+        from: `"HH Job System" <${config.MAIL.USER}>`,
       },
     }),
 

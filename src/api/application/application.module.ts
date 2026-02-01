@@ -7,13 +7,12 @@ import { User } from 'src/core/entity/user.entity';
 
 import { ApplicationController } from '../application/application.controller';
 import { ApplicationService } from './application.service';
-// 1. VacancyModule'ni import qiling
-import { VacancyModule } from '../vacancy/vacancy.module'; // Yo'lni tekshiring
+import { VacancyModule } from '../vacancy/vacancy.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Application, Vacancy, User]),
-    VacancyModule, // 2. Bu yerga VacancyModule'ni qo'shing
+    VacancyModule,
   ],
   controllers: [ApplicationController],
   providers: [ApplicationService],

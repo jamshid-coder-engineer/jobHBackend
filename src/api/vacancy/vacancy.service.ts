@@ -31,8 +31,8 @@ async create(currentUser: { id: string }, dto: CreateVacancyDto): Promise<ISucce
 
     const vacancy = this.vacancyRepo.create({
       ...dto,
-      companyId: company.id, // IDni aniq beramiz
-      company: company,      // Obyektni ham bog'laymiz
+      companyId: company.id,
+      company: company,
       status: VacancyStatus.DRAFT,
       isActive: true,
     });
@@ -48,10 +48,8 @@ async create(currentUser: { id: string }, dto: CreateVacancyDto): Promise<ISucce
     const company = await this.companyRepo.findOne({ where: { id: vacancy.company } as any });
     if (!company) throw new NotFoundException('Company not found');
 
-    // faqat owner update qilsin (admin ham qilishi mumkin bo‘lsa keyin qo‘shamiz)
     if (company.ownerId !== currentUser.id) throw new ForbiddenException('Not your vacancy');
 
-    // Published bo‘lsa edit qilganda qayta moderationga tushirsak HHga yaqin bo‘ladi
     const shouldRemoderate = vacancy.status === VacancyStatus.PUBLISHED;
 
     Object.assign(vacancy, dto);
@@ -67,7 +65,6 @@ async create(currentUser: { id: string }, dto: CreateVacancyDto): Promise<ISucce
   }
 
   async submitForModeration(currentUser: { id: string }, vacancyId: string): Promise<ISuccess> {
-    // 1. Vakansiyani kompaniyasi bilan birga yuklaymiz
     const vacancy = await this.vacancyRepo.findOne({ 
       where: { id: vacancyId } as any,
       relations: ['company'] 
@@ -76,19 +73,16 @@ async create(currentUser: { id: string }, dto: CreateVacancyDto): Promise<ISucce
     if (!vacancy) throw new NotFoundException('Vakansiya topilmadi');
     if (!vacancy.company) throw new BadRequestException('Vakansiyaga boglangan kompaniya topilmadi');
 
-    // 2. Egalik huquqini tekshiramiz
     if (vacancy.company.ownerId !== currentUser.id) {
       throw new ForbiddenException('Bu vakansiya sizga tegishli emas');
     }
 
-    // 3. Kompaniya tasdiqlanganini tekshiramiz
     if (vacancy.company.status !== CompanyStatus.APPROVED) {
       throw new BadRequestException('Kompaniyangiz admin tomonidan tasdiqlanishi kerak');
     }
 
-    // 4. Statusni tekshiramiz (Agar allaqachon PUBLISHED bo'lsa, xato bermasligi uchun)
     if (vacancy.status === VacancyStatus.PUBLISHED) {
-      return successRes(vacancy, 200); // Allaqachon e'lon qilingan
+      return successRes(vacancy, 200);
     }
 
     vacancy.status = VacancyStatus.PENDING;
@@ -134,7 +128,6 @@ async create(currentUser: { id: string }, dto: CreateVacancyDto): Promise<ISucce
     return successRes(await this.vacancyRepo.save(vacancy));
   }
 
-  // Public list uchun Premium mantiqi bilan QueryBuilder
   async listPublic(query: VacancyQueryDto) {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
@@ -148,7 +141,7 @@ async create(currentUser: { id: string }, dto: CreateVacancyDto): Promise<ISucce
     if (query.q) qb.andWhere('v.title ILIKE :q', { q: `%${query.q}%` });
     if (query.city) qb.andWhere('v.city ILIKE :city', { city: `%${query.city}%` });
 
-    qb.orderBy('v.isPremium', 'DESC') // Premiumlar tepada
+    qb.orderBy('v.isPremium', 'DESC')
       .addOrderBy('v.publishedAt', 'DESC');
 
     const [data, total] = await qb.take(limit).skip((page - 1) * limit).getManyAndCount();
@@ -156,12 +149,10 @@ async create(currentUser: { id: string }, dto: CreateVacancyDto): Promise<ISucce
   }
 
 
-  // Admin vakansiyani tasdiqlashi
 async adminSetPremium(vacancyId: string, days: number) {
   const v = await this.vacancyRepo.findOne({ where: { id: vacancyId } as any });
   if (!v) throw new NotFoundException('Vacancy not found');
 
-  // faqat published bo‘lganda premium mantiqli
   if (v.status !== VacancyStatus.PUBLISHED) {
     throw new BadRequestException('Only PUBLISHED vacancies can be premium');
   }
@@ -180,12 +171,11 @@ async adminSetPremium(vacancyId: string, days: number) {
 async buyPremium(currentUser: { id: string; role: Roles }, vacancyId: string, dto: BuyPremiumDto) {
   const vacancy = await this.vacancyRepo.findOne({
     where: { id: vacancyId } as any,
-    relations: ['company', 'company.owner'], // sening relation namingga qarab moslaymiz
+    relations: ['company', 'company.owner'],
   });
 
   if (!vacancy) throw new NotFoundException('Vacancy not found');
 
-  // faqat egasi (EMPLOYER) yoki admin
   const isAdmin = [Roles.ADMIN, Roles.SUPER_ADMIN].includes(currentUser.role);
   const isOwner = vacancy.company?.owner?.id === currentUser.id;
 

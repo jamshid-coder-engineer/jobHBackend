@@ -51,12 +51,10 @@ export class ResumeService {
     const resume = await this.resumeRepo.findOne({ where: { owner: { id: currentUser.id }, isDeleted: false } as any });
     if (!resume) throw new NotFoundException('Resume not found');
 
-    // Eski faylni o'chirish
     if (resume.cvFile) {
       await removeUploadFileSafe(resume.cvFile);
     }
 
-    // Yangi fayl yo'lini saqlash (faqat nisbiy yo'l)
     resume.cvFile = `${config.UPLOAD.FOLDER}/cv/${filename}`;
     return successRes(await this.resumeRepo.save(resume));
   }

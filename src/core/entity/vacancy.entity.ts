@@ -6,14 +6,14 @@ import { EmploymentType, VacancyStatus } from 'src/common/enum/roles.enum';
 
 @OrmEntity('vacancies')
 export class Vacancy extends BaseEntity {
-  @ManyToOne(() => Company, (company) => company.vacancies, { 
-    eager: true, 
-    onDelete: 'CASCADE' 
+  @ManyToOne(() => Company, (company) => company.vacancies, {
+    eager: true,
+    onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'companyId' }) // Bazada companyId ustunini yaratadi
+  @JoinColumn({ name: 'companyId' })
   company: Company;
 
-  @Column({ type: 'uuid' }) // UUID ishlatayotgan bo'lsangiz uuid, aks holda varchar
+  @Column({ type: 'uuid' })
   companyId: string;
 
   @Column({ type: 'varchar' })

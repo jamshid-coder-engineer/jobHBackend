@@ -4,5 +4,5 @@ export class BuyPremiumDto {
   @IsInt()
   @Min(1)
   @Max(365)
-  days: number; // nechchi kunga premium
+  days: number;
 }

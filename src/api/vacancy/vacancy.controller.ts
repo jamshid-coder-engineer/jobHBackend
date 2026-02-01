@@ -17,14 +17,12 @@ import { BuyPremiumDto } from './dto/buy-premium.dto';
 export class VacancyController {
   constructor(private readonly vacancyService: VacancyService) {}
 
-  // PUBLIC list
   @Get()
   @accessRoles('public')
   list(@Query() query: VacancyQueryDto) {
     return this.vacancyService.listPublic(query);
   }
 
-  // employer create (DRAFT)
   @ApiBearerAuth('bearer')
   @Post()
   @UseGuards(AuthGuard, RolesGuard)
@@ -33,7 +31,6 @@ export class VacancyController {
     return this.vacancyService.create(user, dto);
   }
 
-  // employer update
   @ApiBearerAuth('bearer')
   @Patch(':id')
   @UseGuards(AuthGuard, RolesGuard)
@@ -42,7 +39,6 @@ export class VacancyController {
     return this.vacancyService.update(user, id, dto);
   }
 
-  // ✅ employer submit for moderation
   @ApiBearerAuth('bearer')
   @Patch(':id/submit')
   @UseGuards(AuthGuard, RolesGuard)

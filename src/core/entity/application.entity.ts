@@ -6,11 +6,11 @@ import { Resume } from './resume.entity';
 import { ApplicationStatus } from 'src/common/enum/roles.enum';
 
 @OrmEntity('applications')
-@Unique(['vacancy', 'applicant']) // User bitta vakansiyaga faqat 1 marta apply qila oladi
+@Unique(['vacancy', 'applicant'])
 export class Application extends BaseEntity {
-  @ManyToOne(() => Vacancy, (vacancy) => vacancy.applications, { 
-    eager: true, 
-    onDelete: 'CASCADE' 
+  @ManyToOne(() => Vacancy, (vacancy) => vacancy.applications, {
+    eager: true,
+    onDelete: 'CASCADE',
   })
   vacancy: Vacancy;
 

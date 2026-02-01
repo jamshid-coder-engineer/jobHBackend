@@ -7,7 +7,7 @@ import { Roles } from 'src/common/enum/roles.enum';
 import { ApplicationService } from './application.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
-import { CurrentUser } from 'src/common/decorator/currentUser.decorator'; // Agar mavjud bo'lsa
+import { CurrentUser } from 'src/common/decorator/currentUser.decorator';
 
 @ApiTags('Application')
 @ApiBearerAuth('bearer')

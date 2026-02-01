@@ -26,13 +26,19 @@ export interface AppConfig {
   DB: { URL: string };
   JWT: {
     ACCESS_SECRET: string;
-    ACCESS_EXPIRES_IN: number; // seconds
+    ACCESS_EXPIRES_IN: number;
     REFRESH_SECRET: string;
-    REFRESH_EXPIRES_IN: number; // seconds
+    REFRESH_EXPIRES_IN: number;
   };
   SUPER_ADMIN: { EMAIL: string; PASSWORD: string; FULLNAME: string };
   UPLOAD: { FOLDER: string };
   CORS: { ORIGIN: string; CREDENTIALS: boolean };
+  MAIL: {
+    HOST: string;
+    PORT: number;
+    USER: string;
+    PASS: string;
+  };
 }
 
 export const config: AppConfig = {
@@ -57,5 +63,11 @@ export const config: AppConfig = {
   CORS: {
     ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
     CREDENTIALS: boolEnv('CORS_CREDENTIALS', true),
+  },
+  MAIL: {
+    HOST: mustGet('MAIL_HOST'),
+    PORT: mustNumber('MAIL_PORT'),
+    USER: mustGet('MAIL_USER'),
+    PASS: mustGet('MAIL_PASS'),
   },
 };

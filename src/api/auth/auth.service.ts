@@ -103,7 +103,6 @@ export class AuthService implements OnModuleInit {
     const accessToken = await this.tokenService.signAccessToken(payload);
     const refreshToken = await this.tokenService.signRefreshToken(payload);
 
-    // NOTE: refreshToken controller'da cookie'ga yozilib, response'dan o'chiriladi
     return successRes({
       user: { id: user.id, email: user.email, role: user.role },
       accessToken,
@@ -154,7 +153,6 @@ export class AuthService implements OnModuleInit {
     const accessToken = await this.tokenService.signAccessToken(newPayload);
     const newRefreshToken = await this.tokenService.signRefreshToken(newPayload);
 
-    // NOTE: controller cookie'ga yozadi, response'dan o'chiradi
     return successRes({
       accessToken,
       refreshToken: newRefreshToken,

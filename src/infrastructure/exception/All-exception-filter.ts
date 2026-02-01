@@ -132,7 +132,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       this.logger.warn(`CLIENT ERROR | ${JSON.stringify(logPayload)}`);
     }
 
-    // -------- Response (uniform) --------
     const responseBody = {
       statusCode: httpStatus,
       error: errorType,

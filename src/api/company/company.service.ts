@@ -16,7 +16,6 @@ export class CompanyService {
   ) {}
 
   async createMyCompany(currentUser: { id: string; role: any }, dto: CreateCompanyDto): Promise<ISuccess> {
-    // 1 user = 1 company (xohlasang)
     const exists = await this.companyRepo.findOne({ where: { ownerId: currentUser.id } as any });
     if (exists) return successRes(exists);
 
@@ -41,8 +40,6 @@ export class CompanyService {
     const company = await this.companyRepo.findOne({ where: { ownerId: currentUser.id } as any });
     if (!company) throw new NotFoundException('Company not found');
 
-    // agar qayta edit qilsa, status qayta PENDING bo‘lishi (moderation) — ixtiyoriy
-    // HHga yaqin qilish uchun: profil o‘zgarsa qayta moderatsiya:
     company.status = CompanyStatus.PENDING;
     company.rejectedReason = null;
     company.approvedAt = null;
@@ -56,8 +53,7 @@ export class CompanyService {
     const company = await this.companyRepo.findOne({ where: { ownerId: currentUser.id } as any });
     if (!company) throw new NotFoundException('Company not found');
 
-    company.logo = `${filename}`; // yoki `${config.UPLOAD.FOLDER}/${filename}`
-    // logo o‘zgarsa ham qayta moderatsiya qilish mumkin
+    company.logo = `${filename}`;
     company.status = CompanyStatus.PENDING;
     company.rejectedReason = null;
     company.approvedAt = null;
@@ -66,7 +62,6 @@ export class CompanyService {
     return successRes(saved);
   }
 
-  // ✅ Admin uchun list
   async adminList(status?: CompanyStatus): Promise<ISuccess> {
     const where: any = {};
     if (status) where.status = status;
@@ -79,7 +74,6 @@ export class CompanyService {
     return successRes(data);
   }
 
-  // ✅ Admin approve/reject
   async adminApprove(companyId: string): Promise<ISuccess> {
     const company = await this.companyRepo.findOne({ where: { id: companyId } as any });
     if (!company) throw new NotFoundException('Company not found');
@@ -104,7 +98,6 @@ export class CompanyService {
     return successRes(saved);
   }
 
-  // ✅ Verification toggle
   async adminVerify(companyId: string, value: boolean): Promise<ISuccess> {
     const company = await this.companyRepo.findOne({ where: { id: companyId } as any });
     if (!company) throw new NotFoundException('Company not found');

@@ -20,7 +20,6 @@ export class AdminController {
     private readonly vacancyService: VacancyService,
   ) {}
 
-  // --- COMPANY MANAGEMENT ---
   @Get('companies')
   @ApiOperation({ summary: 'Barcha kompaniyalarni status boyicha korish' })
   listCompanies(@Query('status') status?: CompanyStatus) {
@@ -45,7 +44,6 @@ export class AdminController {
     return this.companyService.adminVerify(id, true);
   }
 
-  // --- VACANCY MODERATION ---
   @Get('vacancies')
   @ApiOperation({ summary: 'Moderatsiyadagi vakansiyalarni korish' })
   listVacancies(@Query('status') status?: VacancyStatus) {

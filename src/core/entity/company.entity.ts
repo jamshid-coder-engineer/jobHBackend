@@ -37,7 +37,7 @@ export class Company extends BaseEntity {
   verifiedAt?: Date | null;
 
   @ManyToOne(() => User, (user) => user.company, { eager: true, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'ownerId' }) // Bu ownerId ustunini User ID bilan bog'laydi
+  @JoinColumn({ name: 'ownerId' })
   owner: User;
 
   @Column({ type: 'varchar' })
