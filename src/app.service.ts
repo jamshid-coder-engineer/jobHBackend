@@ -15,15 +15,16 @@ import { AllExceptionsFilter } from './infrastructure/exception/All-exception-fi
 
 import { AppModule } from './app.module';
 import { config } from './config';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 @Injectable()
 class AppService {
   async main() {
-    const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
 
     app.enableCors({
-      origin: config.CORS.ORIGIN,
+      origin: [config.CORS.ORIGIN, 'http://localhost:3000'],
       credentials: config.CORS.CREDENTIALS,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     });
@@ -70,8 +71,12 @@ class AppService {
       }),
     );
 
-    const staticFile = join(__dirname, `../${config.UPLOAD.FOLDER}`);
-    app.use(`/${config.APP.API_PREFIX}/${config.UPLOAD.FOLDER}`, express.static(staticFile));
+
+
+const uploadPath = join(process.cwd(), config.UPLOAD.FOLDER); // 'uploads' papkasi
+app.useStaticAssets(uploadPath, {
+  prefix: '/uploads/', // '/api/v1/uploads'
+});
 
 
     const swaggerConfig = new DocumentBuilder()

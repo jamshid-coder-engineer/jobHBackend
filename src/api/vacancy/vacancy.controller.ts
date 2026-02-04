@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { VacancyService } from './vacancy.service';
 import { CreateVacancyDto } from './dto/create-vacancy.dto';
@@ -22,6 +22,20 @@ export class VacancyController {
   list(@Query() query: VacancyQueryDto) {
     return this.vacancyService.listPublic(query);
   }
+
+  @ApiBearerAuth('bearer')
+@Get('my')
+@UseGuards(AuthGuard, RolesGuard)
+@accessRoles(Roles.EMPLOYER)
+getMyVacancies(@CurrentUser() user: any) {
+  return this.vacancyService.listMyVacancies(user);
+}
+
+@Get(':id')
+@accessRoles('public')
+findOne(@Param('id') id: string) {
+  return this.vacancyService.findOne(id);
+}
 
   @ApiBearerAuth('bearer')
   @Post()
@@ -57,5 +71,13 @@ export class VacancyController {
     @Body() dto: BuyPremiumDto,
   ) {
     return this.vacancyService.buyPremium(user, id, dto);
+  }
+
+  @ApiBearerAuth('bearer')
+  @Delete(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @accessRoles(Roles.EMPLOYER)
+  remove(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.vacancyService.remove(user, id);
   }
 }

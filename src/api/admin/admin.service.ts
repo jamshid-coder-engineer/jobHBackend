@@ -16,19 +16,16 @@ export class AdminService {
   ) {}
 
   async getDashboardStats() {
-    // 1. Umumiy sonlarni hisoblash
     const [companiesCount, vacanciesCount, applicationsCount] = await Promise.all([
       this.companyRepo.count({ where: { isDeleted: false } as any }),
       this.vacancyRepo.count({ where: { isDeleted: false } as any }),
       this.appRepo.count({ where: { isDeleted: false } as any }),
     ]);
 
-    // 2. Qabul qilingan ishchilar soni
     const hiredCount = await this.appRepo.count({
       where: { status: ApplicationStatus.ACCEPTED, isDeleted: false } as any,
     });
 
-    // 3. Eng faol (ko'p ishga qabul qilgan) Top-5 kompaniya
     const topCompanies = await this.appRepo
       .createQueryBuilder('app')
       .leftJoin('app.vacancy', 'vacancy')

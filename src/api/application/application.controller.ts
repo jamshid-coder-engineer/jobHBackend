@@ -25,7 +25,7 @@ export class ApplicationController {
 
   @Get('my')
   @accessRoles(Roles.CANDIDATE)
-  @ApiOperation({ summary: 'Topshirgan arizalarim ro‘yxati' })
+  @ApiOperation({ summary: 'Topshirgan arizalarim royxati' })
   getMyApplications(@CurrentUser() user) {
     return this.applicationService.myApplications(user);
   }

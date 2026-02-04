@@ -10,7 +10,7 @@ export class CreateApplicationDto {
   vacancyId: string;
 
   @ApiPropertyOptional({
-    example: 'Salom, men React bo‘yicha 2 yil tajribaman...',
+    example: 'Salom, men React boyicha 2 yil tajribaman...',
     description: 'Cover letter (optional)',
   })
   @IsOptional()
