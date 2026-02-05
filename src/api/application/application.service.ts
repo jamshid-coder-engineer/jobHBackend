@@ -4,7 +4,7 @@ import {
   Injectable, 
   NotFoundException, 
   Inject, 
-  BadRequestException // ⚠️ YANGI: Xatolik uchun
+  BadRequestException 
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -31,38 +31,36 @@ export class ApplicationService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  /**
-   * ARIZA TOPSHIRISH (Candidate)
-   */
+  
   async apply(currentUser: { id: string; role: Roles }, dto: CreateApplicationDto) {
-    // 1. Rolni tekshirish
+    
     if (currentUser.role !== Roles.CANDIDATE) {
       throw new ForbiddenException('Only candidates can apply');
     }
 
-    // 2. ⚠️ YANGI: PROFIL TO'LIQLIGINI TEKSHIRISH
+    
     const candidate = await this.userRepo.findOne({ 
       where: { id: currentUser.id } as any,
       relations: ['resume'] 
     });
 
-    // ⚠️ 1-XATONI TUZATISH: User topilmasa xato qaytaramiz
+    
     if (!candidate) {
         throw new NotFoundException('Foydalanuvchi topilmadi');
     }
 
-    // ⚠️ 2-XATONI TUZATISH: Endi bemalol tekshirsak bo'ladi
-    // (Agar User Entityga firstName va phone qo'shgan bo'lsangiz, qizil chiziq yo'qoladi)
+    
+    
     if (!candidate.firstName || !candidate.phone) {
       throw new BadRequestException('PROFILE_INCOMPLETE'); 
     }
-    // 3. Vakansiya bormi?
+    
     const vacancy = await this.vacancyRepo.findOne({ 
       where: { id: dto.vacancyId, isDeleted: false, isActive: true } as any 
     });
     if (!vacancy) throw new NotFoundException('Active vacancy not found');
 
-    // 4. DUBLIKAT TEKSHIRUVI (Siz so'ragan "Allaqachon topshirgansiz" qismi)
+    
     const exists = await this.appRepo.findOne({
       where: { 
         vacancy: { id: vacancy.id }, 
@@ -72,11 +70,11 @@ export class ApplicationService {
     });
     
     if (exists) {
-      // Frontend "ALREADY_APPLIED" ni ushlab warning chiqaradi
+      
       throw new ConflictException('ALREADY_APPLIED'); 
     }
 
-    // 5. Yaratish
+    
     const application = this.appRepo.create({
       vacancy,
       applicant: { id: currentUser.id } as any,
@@ -86,17 +84,17 @@ export class ApplicationService {
 
     const saved = await this.appRepo.save(application);
 
-    // 6. KESHNI TOZALASH
+    
     await this.cacheManager.del('admin_stats');
-    // ⚠️ User o'zining arizalarini darrov ko'rishi uchun uning keshini ham o'chiramiz
+    
     await this.cacheManager.del(`my_apps_${currentUser.id}`);
 
     return successRes(saved, 201);
   }
 
-  /**
-   * MENING ARIZALARIM (Candidate)
-   */
+  
+
+
   async myApplications(currentUser: { id: string }) {
     const cacheKey = `my_apps_${currentUser.id}`;
     const cachedData = await this.cacheManager.get(cacheKey);
@@ -108,13 +106,13 @@ export class ApplicationService {
       order: { createdAt: 'DESC' },
     });
 
-    await this.cacheManager.set(cacheKey, data, 60000); // 1 daqiqa kesh
+    await this.cacheManager.set(cacheKey, data, 60000); 
     return successRes(data);
   }
 
-  /**
-   * ISH BERUVCHI UCHUN ARIZALAR
-   */
+  
+
+
   async employerApplications(currentUser: { id: string }) {
     const data = await this.appRepo.find({
       where: { vacancy: { company: { ownerId: currentUser.id } }, isDeleted: false } as any,
@@ -124,9 +122,9 @@ export class ApplicationService {
     return successRes(data);
   }
 
-  /**
-   * STATUSNI O'ZGARTIRISH
-   */
+  
+
+
   async updateApplicationStatus(currentUser: { id: string; role: Roles }, applicationId: string, dto: UpdateApplicationStatusDto) {
     const application = await this.appRepo.findOne({
       where: { id: applicationId, isDeleted: false } as any,
@@ -143,14 +141,14 @@ export class ApplicationService {
     application.status = dto.status;
     const saved = await this.appRepo.save(application);
 
-    // Socket orqali xabar
+    
     this.socketGateway.sendToUser(application.applicant.id, 'application_update', {
       status: dto.status,
       vacancy: application.vacancy.title,
       company: application.vacancy.company.name
     });
 
-    // Email yuborish
+    
     try {
       if (dto.status === ApplicationStatus.ACCEPTED) {
         await this.mailerService.sendMail({
@@ -166,7 +164,7 @@ export class ApplicationService {
       }
     } catch (e) { console.error('Email error:', e.message); }
 
-    // Keshni tozalash
+    
     await this.cacheManager.del(`my_apps_${application.applicant.id}`);
     await this.cacheManager.del('admin_stats');
 

@@ -47,15 +47,31 @@ export class ResumeService {
     return successRes(await this.resumeRepo.save(resume));
   }
 
-  async updateMyCv(currentUser: { id: string }, filename: string) {
-    const resume = await this.resumeRepo.findOne({ where: { owner: { id: currentUser.id }, isDeleted: false } as any });
-    if (!resume) throw new NotFoundException('Resume not found');
+ async updateMyCv(currentUser: { id: string }, filename: string) {
+    
+    let resume = await this.resumeRepo.findOne({ where: { owner: { id: currentUser.id } } as any });
 
-    if (resume.cvFile) {
-      await removeUploadFileSafe(resume.cvFile);
+    
+    if (!resume) {
+      resume = this.resumeRepo.create({
+        owner: { id: currentUser.id } as any,
+        title: 'Boshlang\'ich Rezyume', 
+        fullName: 'Foydalanuvchi',      
+        about: '',
+        city: '',
+        phone: '',
+        skills: '',
+        cvFile: `${config.UPLOAD.FOLDER}/cv/${filename}`, 
+        isActive: true,
+      });
+    } else {
+      
+      if (resume.cvFile) {
+        await removeUploadFileSafe(resume.cvFile);
+      }
+      resume.cvFile = `${config.UPLOAD.FOLDER}/cv/${filename}`;
     }
 
-    resume.cvFile = `${config.UPLOAD.FOLDER}/cv/${filename}`;
     return successRes(await this.resumeRepo.save(resume));
   }
 

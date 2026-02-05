@@ -61,18 +61,18 @@ async listMyVacancies(currentUser: { id: string }): Promise<ISuccess> {
 
     console.log("🏢 KOMPANIYA:", company ? `Topildi: ${company.name} (ID: ${company.id})` : "❌ Topilmadi!");
 
-    // Agar kompaniya topilmasa, demak vakansiya ham yo'q
+    
     if (!company) return successRes([], 200);
 
-    // 2. Endi shu kompaniyaga tegishli BARCHA vakansiyalarni olamiz
-    // (Statusidan qat'i nazar: PENDING, PUBLISHED, REJECTED hammasi chiqishi kerak)
+    
+    
     const data = await this.vacancyRepo.find({
       where: { 
         companyId: company.id, 
         isDeleted: false 
       } as any,
-      relations: ['company', 'applications'], // Arizalar soni uchun kerak
-      order: { createdAt: 'DESC' }, // Eng yangilari tepada
+      relations: ['company', 'applications'], 
+      order: { createdAt: 'DESC' }, 
     });
 console.log("📄 VAKANSIYALAR SONI:", data.length);
 
@@ -104,7 +104,7 @@ console.log("📄 VAKANSIYALAR SONI:", data.length);
   async findOne(id: string): Promise<ISuccess> {
     const vacancy = await this.vacancyRepo.findOne({
       where: { id: id, isDeleted: false } as any,
-      relations: ['company'], // ⚠️ BU BO'LISHI SHART
+      relations: ['company'], 
     });
     if (!vacancy) throw new NotFoundException('Vakansiya topilmadi');
     return successRes(vacancy);
@@ -166,6 +166,41 @@ console.log("📄 VAKANSIYALAR SONI:", data.length);
       order: { createdAt: 'DESC' },
     });
     return successRes(data);
+  }
+
+
+
+  
+  async getAutocomplete(query: string): Promise<string[]> {
+    if (!query) return [];
+
+    const result = await this.vacancyRepo
+      .createQueryBuilder('v')
+      .select('DISTINCT v.title', 'title') 
+      .where('v.title ILIKE :q', { q: `%${query}%` })
+      .andWhere('v.status = :status', { status: VacancyStatus.PUBLISHED }) 
+      .limit(5) 
+      .getRawMany();
+
+    
+    return result.map((item) => item.title);
+  }
+
+
+
+  
+  async getAutocompleteCity(query: string): Promise<string[]> {
+    if (!query) return [];
+
+    const result = await this.vacancyRepo
+      .createQueryBuilder('v')
+      .select('DISTINCT v.city', 'city') 
+      .where('v.city ILIKE :q', { q: `%${query}%` })
+      .andWhere('v.status = :status', { status: VacancyStatus.PUBLISHED })
+      .limit(5)
+      .getRawMany();
+
+    return result.map((item) => item.city);
   }
 
   async buyPremium(currentUser: { id: string; role: Roles }, vacancyId: string, dto: BuyPremiumDto) {

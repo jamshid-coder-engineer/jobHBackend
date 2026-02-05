@@ -58,7 +58,7 @@ export const config: AppConfig = {
     HOST: mustGet('REDIS_HOST'),
     PORT: mustNumber('REDIS_PORT'),
     PASS: mustGet('REDIS_PASSWORD'),
-    URL: `redis://:${process.env.REDIS_PASSWORD}@${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`
+    URL: `redis://:${process.env.REDIS_PASSWORD}@${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
   },
   JWT: {
     ACCESS_SECRET: mustGet('JWT_ACCESS_SECRET'),

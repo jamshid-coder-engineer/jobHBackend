@@ -10,11 +10,17 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', unique: true })
   email: string;
 
-@Column({ nullable: true })
+  @Column({ nullable: true })
   firstName: string;
 
   @Column({ nullable: true })
   phone: string;
+
+  @Column({ nullable: true })
+  jobTitle: string;
+
+  @Column({ nullable: true })
+  city: string;
 
   @Column({ type: 'varchar', select: false })
   passwordHash: string;
@@ -22,7 +28,7 @@ export class User extends BaseEntity {
   @Column({ type: 'enum', enum: Roles, default: Roles.CANDIDATE })
   role: Roles;
 
-  @Column({ type: 'boolean', default: true })
+  @Column({ type: 'boolean', default: false })
   isActive: boolean;
 
   @OneToOne(() => Company, (company) => company.owner)

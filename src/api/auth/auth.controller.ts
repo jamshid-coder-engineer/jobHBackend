@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
@@ -28,6 +28,19 @@ export class AuthController {
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
+
+@Post('verify')
+@accessRoles('public')
+async verify(@Body() body: { email: string; code: string }, @Res({ passthrough: true }) res: Response) {
+  const result = await this.authService.verifyOtp(body.email, body.code);
+
+  
+  const refreshToken = (result as any).data.refreshToken as string;
+  this.tokenService.writeCookie(res, 'refreshToken', refreshToken, config.JWT.REFRESH_EXPIRES_IN);
+
+  const { refreshToken: _rt, ...dataWithoutRefresh } = (result as any).data;
+  return { ...result, data: dataWithoutRefresh };
+}
 
   @Post('login')
   @accessRoles('public')
@@ -82,5 +95,13 @@ export class AuthController {
 
     return successRes({ message: 'Logged out' });
   }
+
+@ApiBearerAuth('bearer')
+  @Patch('profile') 
+  @UseGuards(AuthGuard)
+  updateProfile(@CurrentUser() user, @Body() body: any) {
+    return this.authService.updateProfile(user.id, body);
+  }
+
 }
 

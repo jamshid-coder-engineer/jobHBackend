@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Param, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Param, Query, UseGuards, Post, Delete } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthGuard } from 'src/common/guard/authGuard';
 import { RolesGuard } from 'src/common/guard/roleGuard';
@@ -9,6 +9,7 @@ import { VacancyService } from 'src/api/vacancy/vacancy.service';
 import { AdminService } from './admin.service'; 
 import { AdminSetPremiumDto } from 'src/api/vacancy/dto/admin-set-premium.dto';
 import { AdminRejectVacancyDto } from '../vacancy/dto/admin-reject.dto';
+import { CreateAdminDto } from './dto/create-admin.dto';
 
 @ApiTags('Admin')
 @ApiBearerAuth('bearer')
@@ -34,6 +35,34 @@ export class AdminController {
     return this.companyService.adminList(status);
   }
 
+@Post('create')
+  @accessRoles(Roles.SUPER_ADMIN) 
+  @ApiOperation({ summary: 'Yangi admin yaratish (Faqat Super Admin)' })
+  createAdmin(@Body() dto: CreateAdminDto) {
+    return this.adminService.createAdmin(dto);
+  }
+
+ @Get('vacancies')
+  @ApiOperation({ summary: 'Moderatsiyadagi vakansiyalarni korish' })
+  listVacancies(@Query('status') status?: VacancyStatus) {
+    return this.vacancyService.adminList(status);
+  }
+
+  @Get('list')
+  @accessRoles(Roles.SUPER_ADMIN) 
+  @ApiOperation({ summary: 'Adminlar royxati' })
+  listAdmins() {
+    return this.adminService.listAdmins();
+  }
+
+  @Delete(':id')
+  @accessRoles(Roles.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Adminni ochirish' })
+  deleteAdmin(@Param('id') id: string) {
+    return this.adminService.deleteAdmin(id);
+  }
+
+  
   @Patch('companies/:id/approve')
   @ApiOperation({ summary: 'Kompaniyani tasdiqlash' })
   approveCompany(@Param('id') id: string) {
@@ -50,12 +79,6 @@ export class AdminController {
   @ApiOperation({ summary: 'Kompaniyaga verified statusini berish' })
   verifyCompany(@Param('id') id: string) {
     return this.companyService.adminVerify(id, true);
-  }
-
-  @Get('vacancies')
-  @ApiOperation({ summary: 'Moderatsiyadagi vakansiyalarni korish' })
-  listVacancies(@Query('status') status?: VacancyStatus) {
-    return this.vacancyService.adminList(status);
   }
 
   @Patch('vacancies/:id/approve')

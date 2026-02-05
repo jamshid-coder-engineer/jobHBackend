@@ -7,14 +7,16 @@ import { VacancyModule } from '../vacancy/vacancy.module';
 import { Company } from 'src/core/entity/company.entity';
 import { Vacancy } from 'src/core/entity/vacancy.entity';
 import { Application } from 'src/core/entity/application.entity';
+import { User } from 'src/core/entity/user.entity';
+import { CryptoService } from 'src/infrastructure';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Company, Vacancy, Application]),
+    TypeOrmModule.forFeature([Company, Vacancy, Application, User]),
     CompanyModule, 
     VacancyModule
   ],
   controllers: [AdminController],
-  providers: [AdminService],
+  providers: [AdminService, CryptoService],
 })
 export class AdminModule {}

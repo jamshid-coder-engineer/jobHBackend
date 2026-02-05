@@ -27,9 +27,25 @@ export class VacancyController {
 @Get('my')
 @UseGuards(AuthGuard, RolesGuard)
 @accessRoles(Roles.EMPLOYER)
+
 getMyVacancies(@CurrentUser() user: any) {
   return this.vacancyService.listMyVacancies(user);
 }
+
+
+  
+  
+  @Get('autocomplete/city') 
+  @accessRoles('public')
+  getAutocompleteCity(@Query('q') q: string) {
+    return this.vacancyService.getAutocompleteCity(q);
+  } 
+  
+  @Get('autocomplete') 
+  @accessRoles('public')
+  getAutocomplete(@Query('q') q: string) {
+    return this.vacancyService.getAutocomplete(q);
+  }
 
 @Get(':id')
 @accessRoles('public')
