@@ -14,6 +14,7 @@ import { CurrentUser } from 'src/common/decorator/currentUser.decorator';
 import { TokenService } from 'src/infrastructure/token/Token';
 import { config } from 'src/config';
 import { successRes } from 'src/infrastructure/response/success.response';
+import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -103,5 +104,18 @@ async verify(@Body() body: { email: string; code: string }, @Res({ passthrough: 
     return this.authService.updateProfile(user.id, body);
   }
 
+  @Post('forgot-password')
+  @accessRoles('public')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  // 2. Yangi parolni o'rnatish
+  @Post('reset-password')
+  @accessRoles('public')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.token, dto.newPassword);
+  }
 }
+
 
