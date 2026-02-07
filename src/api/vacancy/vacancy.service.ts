@@ -6,6 +6,7 @@ import type { ISuccess } from 'src/infrastructure/pagination/successResponse';
 import { Pager } from 'src/infrastructure/pagination/Pager';
 
 import { Vacancy } from 'src/core/entity/vacancy.entity';
+import { User } from 'src/core/entity/user.entity'; // 👈 USER IMPORT QILINDI
 import { VacancyStatus, Roles } from 'src/common/enum/roles.enum';
 import { Company } from 'src/core/entity/company.entity';
 import { CreateVacancyDto } from './dto/create-vacancy.dto';
@@ -18,6 +19,8 @@ export class VacancyService {
   constructor(
     @InjectRepository(Vacancy) private readonly vacancyRepo: Repository<Vacancy>,
     @InjectRepository(Company) private readonly companyRepo: Repository<Company>,
+    // 👇 MANA SHU YERDA USER REPO QO'SHILDI
+    @InjectRepository(User) private readonly userRepo: Repository<User>, 
   ) {}
 
   async create(currentUser: { id: string }, dto: CreateVacancyDto): Promise<ISuccess> {
@@ -53,18 +56,13 @@ export class VacancyService {
     const saved = await this.vacancyRepo.save(vacancy);
     return successRes(saved);
   }
-async listMyVacancies(currentUser: { id: string }): Promise<ISuccess> {
-    console.log("🔍 REQUEST KELDI. User ID:", currentUser.id);
+
+  async listMyVacancies(currentUser: { id: string }): Promise<ISuccess> {
     const company = await this.companyRepo.findOne({
       where: { ownerId: currentUser.id, isDeleted: false } as any,
     });
 
-    console.log("🏢 KOMPANIYA:", company ? `Topildi: ${company.name} (ID: ${company.id})` : "❌ Topilmadi!");
-
-    
     if (!company) return successRes([], 200);
-
-    
     
     const data = await this.vacancyRepo.find({
       where: { 
@@ -74,7 +72,6 @@ async listMyVacancies(currentUser: { id: string }): Promise<ISuccess> {
       relations: ['company', 'applications'], 
       order: { createdAt: 'DESC' }, 
     });
-console.log("📄 VAKANSIYALAR SONI:", data.length);
 
     return successRes(data);
   }
@@ -109,6 +106,7 @@ console.log("📄 VAKANSIYALAR SONI:", data.length);
     if (!vacancy) throw new NotFoundException('Vakansiya topilmadi');
     return successRes(vacancy);
   }
+
   async update(currentUser: { id: string; role: any }, vacancyId: string, dto: UpdateVacancyDto): Promise<ISuccess> {
     const vacancy = await this.vacancyRepo.findOne({ 
         where: { id: vacancyId } as any,
@@ -136,17 +134,49 @@ console.log("📄 VAKANSIYALAR SONI:", data.length);
       .andWhere('v.isActive = true')
       .andWhere('v.status = :status', { status: VacancyStatus.PUBLISHED });
 
+    if (query.q) {
+      qb.andWhere('(v.title ILIKE :q OR c.name ILIKE :q)', { q: `%${query.q}%` });
+    }
+
+    if (query.city) {
+      qb.andWhere('v.city ILIKE :city', { city: `%${query.city}%` });
+    }
+
+    if (query.type) {
+      qb.andWhere('v.employmentType = :type', { type: query.type });
+    }
+
+    if (query.minSalary) {
+      qb.andWhere(
+        `(
+          (v.salaryTo IS NOT NULL AND CAST(v.salaryTo AS INTEGER) >= :minSalary) 
+          OR 
+          (v.salaryTo IS NULL AND v.salaryFrom IS NOT NULL AND CAST(v.salaryFrom AS INTEGER) >= :minSalary)
+        )`, 
+        { minSalary: query.minSalary }
+      );
+    }
+
+    if (query.maxSalary) {
+      qb.andWhere(
+        '(v.salaryFrom IS NOT NULL AND CAST(v.salaryFrom AS INTEGER) <= :maxSalary)', 
+        { maxSalary: query.maxSalary }
+      );
+    }
+
+    if (query.date) {
+      const dateThreshold = new Date();
+      if (query.date === '1d') dateThreshold.setDate(dateThreshold.getDate() - 1);
+      if (query.date === '3d') dateThreshold.setDate(dateThreshold.getDate() - 3);
+      if (query.date === '7d') dateThreshold.setDate(dateThreshold.getDate() - 7);
+      
+      qb.andWhere('v.publishedAt >= :dateThreshold', { dateThreshold });
+    }
+
     qb.addSelect(
       `(CASE WHEN v.isPremium = true AND v.premiumUntil > :now THEN 1 ELSE 0 END)`,
       'is_actually_premium'
     ).setParameter('now', now);
-
-    if (query.q) {
-      qb.andWhere('(v.title ILIKE :q OR c.name ILIKE :q)', { q: `%${query.q}%` });
-    }
-    if (query.city) {
-      qb.andWhere('v.city ILIKE :city', { city: `%${query.city}%` });
-    }
 
     qb.orderBy('is_actually_premium', 'DESC')
       .addOrderBy('v.publishedAt', 'DESC');
@@ -168,9 +198,6 @@ console.log("📄 VAKANSIYALAR SONI:", data.length);
     return successRes(data);
   }
 
-
-
-  
   async getAutocomplete(query: string): Promise<string[]> {
     if (!query) return [];
 
@@ -182,13 +209,9 @@ console.log("📄 VAKANSIYALAR SONI:", data.length);
       .limit(5) 
       .getRawMany();
 
-    
     return result.map((item) => item.title);
   }
 
-
-
-  
   async getAutocompleteCity(query: string): Promise<string[]> {
     if (!query) return [];
 
@@ -257,5 +280,48 @@ console.log("📄 VAKANSIYALAR SONI:", data.length);
     await this.vacancyRepo.save(vacancy);
 
     return successRes({ message: 'Vakansiya muvaffaqiyatli oʻchirildi' });
+  }
+
+  // 👇 XATO TUZATILDI: TOGGLE SAVE FUNKSIYASI ENDI TO'G'RI ISHLAYDI
+  async toggleSave(currentUser: { id: string }, vacancyId: string) {
+    // 1. Userni o'zining saqlagan ishlari bilan birga olamiz (this.userRepo ISHLATILDI)
+    const user = await this.userRepo.findOne({
+      where: { id: currentUser.id } as any,
+      relations: ['savedVacancies'], 
+    });
+
+    if (!user) throw new NotFoundException('User topilmadi');
+
+    // 2. Vakansiyani topamiz
+    const vacancy = await this.vacancyRepo.findOne({ where: { id: vacancyId } as any });
+    if (!vacancy) throw new NotFoundException('Vakansiya topilmadi');
+
+    // 3. Tekshiramiz: Bu ish allaqachon bormi?
+    const existsIndex = user.savedVacancies.findIndex(v => v.id === vacancy.id);
+
+    if (existsIndex > -1) {
+      // BOR EKAN -> O'CHIRAMIZ (Unsave)
+      user.savedVacancies.splice(existsIndex, 1);
+      await this.userRepo.save(user); // this.userRepo ISHLATILDI
+      return successRes({ isSaved: false, message: "Saqlanganlardan olib tashlandi" });
+    } else {
+      // YO'Q EKAN -> QO'SHAMIZ (Save)
+      user.savedVacancies.push(vacancy);
+      await this.userRepo.save(user); // this.userRepo ISHLATILDI
+      return successRes({ isSaved: true, message: "Saqlanganlarga qo'shildi" });
+    }
+  }
+
+  // ... class ichida
+  async getMySavedVacancies(currentUser: { id: string }) {
+    const user = await this.userRepo.findOne({
+      where: { id: currentUser.id } as any,
+      relations: ['savedVacancies', 'savedVacancies.company'], // Vakansiya va Kompaniyasini olib kelamiz
+    });
+
+    if (!user) return successRes([]);
+    
+    // Saqlangan vakansiyalarni qaytaramiz
+    return successRes(user.savedVacancies);
   }
 }

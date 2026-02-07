@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { VacancyService } from './vacancy.service';
 import { CreateVacancyDto } from './dto/create-vacancy.dto';
@@ -23,6 +23,13 @@ export class VacancyController {
     return this.vacancyService.listPublic(query);
   }
 
+// ... class ichida
+  @Get('my/saved')
+  @UseGuards(AuthGuard)
+  async getMySaved(@CurrentUser() user) {
+     return this.vacancyService.getMySavedVacancies(user);
+  }
+
   @ApiBearerAuth('bearer')
 @Get('my')
 @UseGuards(AuthGuard, RolesGuard)
@@ -31,9 +38,6 @@ export class VacancyController {
 getMyVacancies(@CurrentUser() user: any) {
   return this.vacancyService.listMyVacancies(user);
 }
-
-
-  
   
   @Get('autocomplete/city') 
   @accessRoles('public')
@@ -47,12 +51,6 @@ getMyVacancies(@CurrentUser() user: any) {
     return this.vacancyService.getAutocomplete(q);
   }
 
-@Get(':id')
-@accessRoles('public')
-findOne(@Param('id') id: string) {
-  return this.vacancyService.findOne(id);
-}
-
   @ApiBearerAuth('bearer')
   @Post()
   @UseGuards(AuthGuard, RolesGuard)
@@ -60,6 +58,25 @@ findOne(@Param('id') id: string) {
   create(@CurrentUser() user: any, @Body() dto: CreateVacancyDto) {
     return this.vacancyService.create(user, dto);
   }
+
+@Get(':id')
+@accessRoles('public')
+findOne(@Param('id') id: string) {
+  return this.vacancyService.findOne(id);
+}
+
+
+@Post(':id/save')
+  @UseGuards(AuthGuard, RolesGuard)
+  async toggleSave(@CurrentUser() user, @Param('id') id: string) {
+    // Faqat CANDIDATE (Nomzod) saqlay olsin
+    if (user.role !== Roles.CANDIDATE) {
+        throw new ForbiddenException("Faqat nomzodlar ishni saqlashi mumkin");
+    }
+    return this.vacancyService.toggleSave(user, id);
+  }
+
+  
 
   @ApiBearerAuth('bearer')
   @Patch(':id')

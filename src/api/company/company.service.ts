@@ -7,7 +7,7 @@ import type { ISuccess } from 'src/infrastructure/pagination/successResponse';
 import { Company } from 'src/core/entity/company.entity';
 import { CreateCompanyDto } from './dto/com.create.dto';
 import { UpdateCompanyDto } from './dto/com.update.dto';
-import { CompanyStatus } from 'src/common/enum/roles.enum';
+import { CompanyStatus, VacancyStatus } from 'src/common/enum/roles.enum';
 
 @Injectable()
 export class CompanyService {
@@ -96,6 +96,25 @@ export class CompanyService {
 
     const saved = await this.companyRepo.save(company);
     return successRes(saved);
+  }
+
+async getOnePublic(id: string): Promise<ISuccess> {
+    const company = await this.companyRepo.findOne({
+      where: { id } as any,
+      relations: ['vacancies'], // 👈 Vakansiyalarni ham olib kelyapmiz
+    });
+
+    if (!company) throw new NotFoundException('Kompaniya topilmadi');
+
+    // Faqat faol va o'chirilmagan vakansiyalarni qoldiramiz
+    // (Agar sizda Vacancy entityda isDeleted va status bo'lsa)
+    if (company.vacancies) {
+      company.vacancies = company.vacancies.filter(
+        (v: any) => v.status === VacancyStatus.PUBLISHED && !v.isDeleted
+      );
+    }
+
+    return successRes(company);
   }
 
   async adminVerify(companyId: string, value: boolean): Promise<ISuccess> {

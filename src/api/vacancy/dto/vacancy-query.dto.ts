@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsEnum, IsInt, IsNumberString, IsOptional, IsString, Max, Min, IsNumber } from 'class-validator';
 import { EmploymentType } from 'src/common/enum/roles.enum';
 
 export class VacancyQueryDto {
@@ -22,13 +22,6 @@ export class VacancyQueryDto {
   @IsEnum(EmploymentType)
   employmentType?: EmploymentType;
 
-  @ApiPropertyOptional({ example: 5000000, description: 'Minimum salary filter' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  minSalary?: number;
-
   @ApiPropertyOptional({ example: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)
@@ -43,4 +36,28 @@ export class VacancyQueryDto {
   @Min(1)
   @Max(50)
   limit?: number;
+
+  // 👇 MINIMAL MAOSH
+  @ApiPropertyOptional({ description: 'Minimal maosh ($)', example: 1000 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  minSalary?: number;
+
+  // 👇 YANGI QO'SHILDI: MAKSIMAL MAOSH (XATONI TUZATISH UCHUN) ✅
+  @ApiPropertyOptional({ description: 'Maksimal maosh ($)', example: 5000 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  maxSalary?: number;
+
+  @ApiPropertyOptional({ description: 'Ish turi', enum: ['FULL_TIME', 'PART_TIME', 'REMOTE', 'PROJECT'] })
+  @IsOptional()
+  @IsString()
+  type?: string; 
+
+  @ApiPropertyOptional({ description: 'Qachon joylangan', example: '1d (24 soat), 3d (3 kun), 7d (Hafta)' })
+  @IsOptional()
+  @IsString()
+  date?: string;
 }

@@ -1,8 +1,9 @@
-import { Column, Entity as OrmEntity, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Column, Entity as OrmEntity, ManyToOne, OneToMany, JoinColumn, ManyToMany } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { Company } from './company.entity';
 import { Application } from './application.entity';
 import { EmploymentType, VacancyStatus } from 'src/common/enum/roles.enum';
+import { User } from './user.entity';
 
 @OrmEntity('vacancies')
 export class Vacancy extends BaseEntity {
@@ -55,6 +56,10 @@ export class Vacancy extends BaseEntity {
 
   @Column({ type: 'timestamp', nullable: true })
   premiumUntil?: Date | null;
+
+  @ManyToMany(() => User, (user) => user.savedVacancies)
+  savedByUsers: User[];
+
 
   @OneToMany(() => Application, (application) => application.vacancy)
   applications: Application[];

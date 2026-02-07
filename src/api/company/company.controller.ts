@@ -42,6 +42,10 @@ export class CompanyController {
     return this.companyService.updateMyCompany(user, dto);
   }
 
+  @Get(':id/public')
+  async getOnePublic(@Param('id') id: string) {
+    return this.companyService.getOnePublic(id);
+  }
  
   @ApiBearerAuth('bearer')
   @ApiConsumes('multipart/form-data')
