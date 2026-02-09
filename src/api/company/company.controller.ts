@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, UseGuards, UploadedFile, UseInterceptors, Query, Param } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards, UploadedFile, UseInterceptors, Query, Param, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 
@@ -58,5 +58,12 @@ export class CompanyController {
   @UseInterceptors(FileInterceptor('file', multerOptions))
   uploadLogo(@CurrentUser() user: any, @UploadedFile() file: any) {
     return this.companyService.updateMyLogo(user, file.filename);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('create-by-inn')
+  async createByInn(@Req() req: any, @Body('inn') inn: string) {
+    // req.user - bu tokendan kelgan foydalanuvchi
+    return await this.companyService.createCompanyByInn(req.user, inn);
   }
 }
