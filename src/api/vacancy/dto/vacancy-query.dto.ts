@@ -37,14 +37,12 @@ export class VacancyQueryDto {
   @Max(50)
   limit?: number;
 
-  // 👇 MINIMAL MAOSH
   @ApiPropertyOptional({ description: 'Minimal maosh ($)', example: 1000 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   minSalary?: number;
 
-  // 👇 YANGI QO'SHILDI: MAKSIMAL MAOSH (XATONI TUZATISH UCHUN) ✅
   @ApiPropertyOptional({ description: 'Maksimal maosh ($)', example: 5000 })
   @IsOptional()
   @Type(() => Number)

@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Request } from 'express';
 
 import { ROLES_KEY } from '../decorator/roles.decorator';
 import { TokenService } from '../../infrastructure/token/Token';
@@ -22,27 +23,34 @@ export class AuthGuard implements CanActivate {
       ctx.getHandler(),
       ctx.getClass(),
     ]);
+
     if (roles?.includes('public')) return true;
 
-    const req = ctx.switchToHttp().getRequest();
-    const auth = req.headers.authorization as string | undefined;
+    const req = ctx.switchToHttp().getRequest<Request>();
 
-    if (!auth?.startsWith('Bearer ')) throw new UnauthorizedException();
 
-    const token = auth.slice(7);
+    const token = req.cookies['accessToken']; 
+
+    if (!token) {
+      throw new UnauthorizedException('Siz tizimga kirmagansiz (Token yo\'q)');
+    }
 
     try {
       const data = await this.tokenService.verifyAccessToken(token);
-      req.user = data;
+      
+      req['user'] = data;
+      
       return true;
     } catch (error: any) {
+      console.log('Auth error:', error.message);
+      
       if (error?.name === 'TokenExpiredError') {
-        throw new UnauthorizedException('Token expired');
+        throw new UnauthorizedException('Token muddati tugagan');
       }
       if (error?.name === 'JsonWebTokenError') {
-        throw new UnauthorizedException('Invalid token');
+        throw new UnauthorizedException('Noto\'g\'ri token');
       }
-      throw new InternalServerErrorException('Unexpected auth error');
+      throw new InternalServerErrorException('Avtorizatsiya xatosi');
     }
   }
 }

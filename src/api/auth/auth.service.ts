@@ -253,17 +253,13 @@ export class AuthService implements OnModuleInit {
 async forgotPassword(email: string): Promise<ISuccess> {
     const user = await this.userRepo.findOne({ where: { email } as any });
     if (!user) {
-      // Xavfsizlik uchun: User topilmasa ham "Yuborildi" deymiz (xakkerlar email borligini bilmasligi uchun)
       return successRes({ message: 'Agar bu email mavjud bo\'lsa, unga link yuborildi.' });
     }
 
-    // Unikal token yaratamiz (bu parol emas, shunchaki kalit)
     const token = uuidv4(); 
 
-    // Redisga yozamiz: "reset:TOKEN" -> "EMAIL" (15 daqiqa yashaydi)
-    await this.cacheManager.set(`reset:${token}`, email, 900000); // 15 min
+    await this.cacheManager.set(`reset:${token}`, email, 900000);
 
-    // Emailga link yuborish
     const resetLink = `http://localhost:3000/reset-password?token=${token}`;
 
     try {
@@ -285,9 +281,7 @@ async forgotPassword(email: string): Promise<ISuccess> {
     return successRes({ message: 'Emailga tasdiqlash linki yuborildi' });
   }
 
-  // 2. YANGI PAROLNI SAQLASH LOGIKASI
   async resetPassword(token: string, newPassword: string): Promise<ISuccess> {
-    // Redisdan tokenni tekshiramiz
     const email = await this.cacheManager.get<string>(`reset:${token}`);
     
     if (!email) {
@@ -297,13 +291,11 @@ async forgotPassword(email: string): Promise<ISuccess> {
     const user = await this.userRepo.findOne({ where: { email } as any });
     if (!user) throw new NotFoundException('Foydalanuvchi topilmadi');
 
-    // Yangi parolni shifrlaymiz
     const passwordHash = await this.crypto.encrypt(newPassword);
     user.passwordHash = passwordHash;
     
     await this.userRepo.save(user);
 
-    // Ishlatilgan tokenni o'chirib tashlaymiz
     await this.cacheManager.del(`reset:${token}`);
 
     return successRes({ message: 'Parol muvaffaqiyatli o\'zgartirildi. Endi yangi parol bilan kiring.' });

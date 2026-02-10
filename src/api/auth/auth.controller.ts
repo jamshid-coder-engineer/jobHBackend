@@ -30,41 +30,33 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
-@Post('verify')
-@accessRoles('public')
-async verify(@Body() body: { email: string; code: string }, @Res({ passthrough: true }) res: Response) {
-  const result = await this.authService.verifyOtp(body.email, body.code);
+  @Post('verify')
+  @accessRoles('public')
+  async verify(@Body() body: { email: string; code: string }, @Res({ passthrough: true }) res: Response) {
+    const result: any = await this.authService.verifyOtp(body.email, body.code);
 
-  
-  const refreshToken = (result as any).data.refreshToken as string;
-  this.tokenService.writeCookie(res, 'refreshToken', refreshToken, config.JWT.REFRESH_EXPIRES_IN);
+    this.tokenService.writeCookie(res, 'refreshToken', result.data.refreshToken, config.JWT.REFRESH_EXPIRES_IN);
 
-  const { refreshToken: _rt, ...dataWithoutRefresh } = (result as any).data;
-  return { ...result, data: dataWithoutRefresh };
-}
+    this.tokenService.writeCookie(res, 'accessToken', result.data.accessToken, config.JWT.ACCESS_EXPIRES_IN);
+
+    const { refreshToken, accessToken, ...dataWithoutTokens } = result.data;
+    return { ...result, data: dataWithoutTokens };
+  }
 
   @Post('login')
   @accessRoles('public')
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.login(dto);
+    const result: any = await this.authService.login(dto);
 
-    
-    const refreshToken = (result as any).data.refreshToken as string;
+    this.tokenService.writeCookie(res, 'refreshToken', result.data.refreshToken, config.JWT.REFRESH_EXPIRES_IN);
 
-    
-    this.tokenService.writeCookie(
-      res,
-      'refreshToken',
-      refreshToken,
-      config.JWT.REFRESH_EXPIRES_IN, 
-    );
+    this.tokenService.writeCookie(res, 'accessToken', result.data.accessToken, config.JWT.ACCESS_EXPIRES_IN);
 
-    
-    const { refreshToken: _rt, ...dataWithoutRefresh } = (result as any).data;
+    const { refreshToken, accessToken, ...dataWithoutTokens } = result.data;
 
     return {
-      ...(result as any),
-      data: dataWithoutRefresh,
+      ...result,
+      data: dataWithoutTokens,
     };
   }
 
@@ -75,29 +67,36 @@ async verify(@Body() body: { email: string; code: string }, @Res({ passthrough: 
     return this.authService.me(user);
   }
 
+
   @Post('refresh')
   @accessRoles('public')
-  refresh(@Req() req: Request) {
-    
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const token = req.cookies?.refreshToken as string | undefined;
-    return this.authService.refresh(token || '');
+    
+    const result: any = await this.authService.refresh(token || '');
+
+    if(result.data?.accessToken) {
+       this.tokenService.writeCookie(
+         res, 
+         'accessToken', 
+         result.data.accessToken, 
+         config.JWT.ACCESS_EXPIRES_IN
+       );
+    }
+
+    return { message: 'Token yangilandi' };
   }
 
   @Post('logout')
   @accessRoles('public')
   logout(@Res({ passthrough: true }) res: Response) {
-    
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: config.APP.NODE_ENV === 'production',
-      sameSite: config.APP.NODE_ENV === 'production' ? 'none' : 'lax',
-      path: '/',
-    });
+    res.clearCookie('refreshToken');
+    res.clearCookie('accessToken');
 
     return successRes({ message: 'Logged out' });
   }
 
-@ApiBearerAuth('bearer')
+  @ApiBearerAuth('bearer')
   @Patch('profile') 
   @UseGuards(AuthGuard)
   updateProfile(@CurrentUser() user, @Body() body: any) {
@@ -110,12 +109,9 @@ async verify(@Body() body: { email: string; code: string }, @Res({ passthrough: 
     return this.authService.forgotPassword(dto.email);
   }
 
-  // 2. Yangi parolni o'rnatish
   @Post('reset-password')
   @accessRoles('public')
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.newPassword);
   }
 }
-
-

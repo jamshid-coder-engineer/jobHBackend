@@ -23,7 +23,6 @@ export class VacancyController {
     return this.vacancyService.listPublic(query);
   }
 
-// ... class ichida
   @Get('my/saved')
   @UseGuards(AuthGuard)
   async getMySaved(@CurrentUser() user) {
@@ -69,7 +68,6 @@ findOne(@Param('id') id: string) {
 @Post(':id/save')
   @UseGuards(AuthGuard, RolesGuard)
   async toggleSave(@CurrentUser() user, @Param('id') id: string) {
-    // Faqat CANDIDATE (Nomzod) saqlay olsin
     if (user.role !== Roles.CANDIDATE) {
         throw new ForbiddenException("Faqat nomzodlar ishni saqlashi mumkin");
     }

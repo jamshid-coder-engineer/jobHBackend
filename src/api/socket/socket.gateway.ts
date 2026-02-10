@@ -35,12 +35,8 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       const token = this.normalizeToken(rawToken as any);
 
-      // console.log('SOCKET CONNECT TRY ✅ socketId:', client.id);
-      // console.log('SOCKET TOKEN RAW:', rawToken);
-      // console.log('SOCKET TOKEN NORM:', token?.slice(0, 25), '...');
 
       if (!token) {
-        // console.log('SOCKET: token yo‘q -> disconnect ❌');
         return client.disconnect(true);
       }
 
@@ -49,7 +45,6 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       await client.join(`user_${userId}`);
 
-      // console.log(`Foydalanuvchi xonaga qo'shildi ✅ user_${userId}`);
 
       client.emit('connection_success', {
         message: 'Siz shaxsiy xonaga ulandingiz!',
@@ -67,6 +62,5 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   sendToUser(userId: string, event: string, data: any) {
     this.server.to(`user_${userId}`).emit(event, data);
-    // console.log(`Xabar yuborildi 🚀 user_${userId} -> ${event}`);
   }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, UseGuards, UploadedFile, UseInterceptors, Query, Param, Req } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards, UploadedFile, UseInterceptors, Param, Req, BadRequestException } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 
@@ -19,19 +19,37 @@ export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
   @ApiBearerAuth('bearer')
+  @Get('me')
+  @UseGuards(AuthGuard)
+  me(@CurrentUser() user: any) {
+    return this.companyService.getMyCompany(user);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('create-by-inn')
+  async createByInn(@Req() req: any, @Body('inn') inn: string) {
+    return await this.companyService.createCompanyByInn(req.user, inn);
+  }
+
+  @ApiBearerAuth('bearer')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
+  })
+  @Post('upload-logo') 
+  @UseGuards(AuthGuard)
+  @UseInterceptors(FileInterceptor('file', multerOptions))
+  uploadLogo(@CurrentUser() user: any, @UploadedFile() file: any) {
+    if (!file) throw new BadRequestException('Rasm yuklanmadi');
+    return this.companyService.updateMyLogo(user, file.filename);
+  }
+
+  @ApiBearerAuth('bearer')
   @Post('me')
   @UseGuards(AuthGuard, RolesGuard)
   @accessRoles(Roles.EMPLOYER) 
   createMe(@CurrentUser() user: any, @Body() dto: CreateCompanyDto) {
     return this.companyService.createMyCompany(user, dto);
-  }
-
-  @ApiBearerAuth('bearer')
-  @Get('me')
-  @UseGuards(AuthGuard, RolesGuard)
-  @accessRoles(Roles.EMPLOYER)
-  me(@CurrentUser() user: any) {
-    return this.companyService.getMyCompany(user);
   }
 
   @ApiBearerAuth('bearer')
@@ -45,25 +63,5 @@ export class CompanyController {
   @Get(':id/public')
   async getOnePublic(@Param('id') id: string) {
     return this.companyService.getOnePublic(id);
-  }
- 
-  @ApiBearerAuth('bearer')
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
-  })
-  @Patch('me/logo')
-  @UseGuards(AuthGuard, RolesGuard)
-  @accessRoles(Roles.EMPLOYER)
-  @UseInterceptors(FileInterceptor('file', multerOptions))
-  uploadLogo(@CurrentUser() user: any, @UploadedFile() file: any) {
-    return this.companyService.updateMyLogo(user, file.filename);
-  }
-
-  @UseGuards(AuthGuard)
-  @Post('create-by-inn')
-  async createByInn(@Req() req: any, @Body('inn') inn: string) {
-    // req.user - bu tokendan kelgan foydalanuvchi
-    return await this.companyService.createCompanyByInn(req.user, inn);
   }
 }

@@ -6,7 +6,7 @@ import type { ISuccess } from 'src/infrastructure/pagination/successResponse';
 import { Pager } from 'src/infrastructure/pagination/Pager';
 
 import { Vacancy } from 'src/core/entity/vacancy.entity';
-import { User } from 'src/core/entity/user.entity'; // 👈 USER IMPORT QILINDI
+import { User } from 'src/core/entity/user.entity';
 import { VacancyStatus, Roles } from 'src/common/enum/roles.enum';
 import { Company } from 'src/core/entity/company.entity';
 import { CreateVacancyDto } from './dto/create-vacancy.dto';
@@ -19,7 +19,6 @@ export class VacancyService {
   constructor(
     @InjectRepository(Vacancy) private readonly vacancyRepo: Repository<Vacancy>,
     @InjectRepository(Company) private readonly companyRepo: Repository<Company>,
-    // 👇 MANA SHU YERDA USER REPO QO'SHILDI
     @InjectRepository(User) private readonly userRepo: Repository<User>, 
   ) {}
 
@@ -282,46 +281,44 @@ export class VacancyService {
     return successRes({ message: 'Vakansiya muvaffaqiyatli oʻchirildi' });
   }
 
-  // 👇 XATO TUZATILDI: TOGGLE SAVE FUNKSIYASI ENDI TO'G'RI ISHLAYDI
   async toggleSave(currentUser: { id: string }, vacancyId: string) {
-    // 1. Userni o'zining saqlagan ishlari bilan birga olamiz (this.userRepo ISHLATILDI)
-    const user = await this.userRepo.findOne({
-      where: { id: currentUser.id } as any,
-      relations: ['savedVacancies'], 
-    });
-
+    const user = await this.userRepo.findOne({ where: { id: currentUser.id } as any });
     if (!user) throw new NotFoundException('User topilmadi');
 
-    // 2. Vakansiyani topamiz
     const vacancy = await this.vacancyRepo.findOne({ where: { id: vacancyId } as any });
     if (!vacancy) throw new NotFoundException('Vakansiya topilmadi');
 
-    // 3. Tekshiramiz: Bu ish allaqachon bormi?
-    const existsIndex = user.savedVacancies.findIndex(v => v.id === vacancy.id);
+    const count = await this.userRepo.createQueryBuilder('u')
+      .leftJoin('u.savedVacancies', 'v')
+      .where('u.id = :userId', { userId: currentUser.id })
+      .andWhere('v.id = :vacancyId', { vacancyId })
+      .getCount();
 
-    if (existsIndex > -1) {
-      // BOR EKAN -> O'CHIRAMIZ (Unsave)
-      user.savedVacancies.splice(existsIndex, 1);
-      await this.userRepo.save(user); // this.userRepo ISHLATILDI
+    if (count > 0) {
+      await this.userRepo.createQueryBuilder()
+        .relation(User, 'savedVacancies')
+        .of(currentUser.id)
+        .remove(vacancyId);
+
       return successRes({ isSaved: false, message: "Saqlanganlardan olib tashlandi" });
     } else {
-      // YO'Q EKAN -> QO'SHAMIZ (Save)
-      user.savedVacancies.push(vacancy);
-      await this.userRepo.save(user); // this.userRepo ISHLATILDI
+      await this.userRepo.createQueryBuilder()
+        .relation(User, 'savedVacancies')
+        .of(currentUser.id)
+        .add(vacancyId);
+
       return successRes({ isSaved: true, message: "Saqlanganlarga qo'shildi" });
     }
   }
 
-  // ... class ichida
   async getMySavedVacancies(currentUser: { id: string }) {
     const user = await this.userRepo.findOne({
       where: { id: currentUser.id } as any,
-      relations: ['savedVacancies', 'savedVacancies.company'], // Vakansiya va Kompaniyasini olib kelamiz
+      relations: ['savedVacancies', 'savedVacancies.company'],
     });
 
     if (!user) return successRes([]);
     
-    // Saqlangan vakansiyalarni qaytaramiz
-    return successRes(user.savedVacancies);
+    return successRes(user.savedVacancies || []);
   }
 }

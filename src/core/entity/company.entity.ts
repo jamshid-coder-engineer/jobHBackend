@@ -38,12 +38,11 @@ export class Company extends BaseEntity {
 
  @Column({ type: 'varchar', length: 9, unique: true, nullable: true }) 
   inn: string;
-  // Bu maydonlar API dan kelgan ma'lumot bilan avtomatik to'ldiriladi
   @Column({ type: 'varchar', nullable: true })
   directorName: string; 
 
   @Column({ type: 'boolean', default: false })
-  isLegalEntity: boolean; // Haqiqiy yuridik shaxs ekanligini bildiradi
+  isLegalEntity: boolean;
 
 
   @ManyToOne(() => User, (user) => user.company, { eager: true, onDelete: 'CASCADE' })

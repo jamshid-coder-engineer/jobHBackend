@@ -1,10 +1,10 @@
-import { Column, Entity as OrmEntity, OneToOne, OneToMany, ManyToMany, JoinTable } from 'typeorm'; // 👈 ManyToMany, JoinTable qo'shildi
+import { Column, Entity as OrmEntity, OneToOne, OneToMany, ManyToMany, JoinTable } from 'typeorm';
 import { Roles } from '../../common/enum/roles.enum';
 import { BaseEntity } from './base.entity';
 import { Company } from './company.entity';
 import { Resume } from './resume.entity';
 import { Application } from './application.entity';
-import { Vacancy } from './vacancy.entity'; // 👈 Vacancy import qilish kerak (agar aylanma import bo'lsa forwardRef ishlatamiz)
+import { Vacancy } from './vacancy.entity'; 
 
 @OrmEntity('users')
 export class User extends BaseEntity {
@@ -41,8 +41,7 @@ export class User extends BaseEntity {
   @OneToMany(() => Application, (application) => application.applicant)
   applications: Application[];
 
-  // 👇 YANGI QO'SHILGAN QISM: TANLANGAN VAKANSIYALAR
   @ManyToMany(() => Vacancy, (vacancy) => vacancy.savedByUsers)
-  @JoinTable({ name: 'users_saved_vacancies' }) // Bu o'rtaliq jadval nomini beradi
+  @JoinTable({ name: 'users_saved_vacancies' })
   savedVacancies: Vacancy[];
 }
